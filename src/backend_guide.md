@@ -20,7 +20,6 @@ type Point struct {
     X, Y int
 }
 
-// Standard Directions
 var (
     DirUp    = Point{0, -1}
     DirDown  = Point{0, 1}
@@ -28,8 +27,8 @@ var (
     DirRight = Point{1, 0}
 )
 
-// basic operations on Point
 func (p Point) Add(other Point) Point 
+func (p Point) Sub(other Point) Point
 func (p Point) Eq(other Point) bool
 
 // Vector represents spatial velocity or direction or displacement.
@@ -87,7 +86,7 @@ type CollisionObject interface {
 
 // CollisionTiles implements CollisionObject for sparse objects (Entities, Snakes)
 type CollisionTiles struct {
-    Points []Point // Slice of values for cache locality
+    Points []Point
 }
 
 func (c *CollisionTiles) IsColliding(other CollisionObject) bool {
@@ -110,21 +109,24 @@ func (c *CollisionTiles) IsColliding(other CollisionObject) bool {
 
 // CollisionMap implements CollisionObject for static map geometry
 type CollisionMap struct {
-    Width, Height int
+    UseBounds bool
+    P0 Point
+    Width,Height int
     Occupied      [][]bool
 }
 
 func (c *CollisionMap) Contains(p Point) bool {
-    if p.X < 0 || p.X >= c.Width || p.Y < 0 || p.Y >= c.Height {
-        return true // Treat out of bounds as collision (or handle wrapping)
+    pr := p.Sub(c.P0)
+    if pr.X < 0 || pr.Y < 0 || pr.X >= c.Width || pr.Y >= c.Height {
+        return c.UseBounds
     }
-    return c.Occupied[p.X][p.Y]
+    return c.Occupied[pr.X][pr.Y]
 }
 
 func (c *CollisionMap) IsColliding(other CollisionObject) bool {
     switch o := other.(type) {
     case *CollisionTiles:
-        return o.IsColliding(c) // Delegate
+        return o.IsColliding(c)
     }
     return false
 }
@@ -140,35 +142,63 @@ The `Entity` struct is the generic container for all dynamic objects in the game
 type EntityType int
 
 const (
-    EntityBullet EntityType = iota
-    EntityBot
-    EntityApple
+    EntityApple EntityType = iota
     EntityItem
+    EntityBullet
+    EntityBot
     EntityFartCloud
 )
 
-// Entity represents any dynamic object in the world (except PlayerSnakes).
-// Collectibles (Items & Apples), bots, bullets and farts inherit from this.
-// Implements Collidable and Updatable interfaces.
-type Entity struct {
+// Entity interface ensures objects satisfy collision and update protocols.
+type Entity interface {
+    Collidable
+    Updatable
+}
+
+// EntityBase represents any dynamic object in the world.
+// Entities (Apples, Items, Bullets, Bots) embed this.
+type EntityBase struct {
     ID             uint64
     Type           EntityType
     Collider       *CollisionTiles  // The entity's physical presence
-    OwnerID        int              // Player who spawned it (or 0 for world)
+    OwnerID        int              // Player who spawned it (or -1 for world)
     LifeTime       int              // Ticks remaining (-1 for infinite)
-    Behavior       Updatable        // specific logic (e.g., bot AI, missile tracking)
+}
+
+func (e *EntityBase) Update(state *GameState) {
+    if e.LifeTime > 0 {
+        e.LifeTime--
+    }
+}
+
+// Apple embeds EntityBase and adds specific logic if needed (e.g. what happens on collision).
+type Apple struct {
+    *EntityBase
 }
 
 // used by the item struct to identify itself
 type ItemType int
 
 const (
-    ItemShooting ItemType = iota
+    ItemNone ItemType = iota
+    ItemShooting
     ItemSpeed
     ItemBot
     ItemFart
     ItemRevive
 )
+
+// ItemHandler defines the effect of using an item. 
+// It returns true if the item was successfully used (and should be consumed).
+type ItemHandler func(user *PlayerSnake, state *GameState) bool
+
+// Global registry of item behaviors, populated at startup.
+var ItemRegistry = map[ItemType]ItemHandler{}
+
+type Item struct {
+    *EntityBase
+    ItemType       ItemType
+}
 ```
 
 ### 4. Snake Actors (`snake.go`)
@@ -189,7 +219,7 @@ type BaseSnake struct {
     StatusEffects   []Updatable     // Active status effects
     IsGhost         bool            // Can pass through walls
     IsDead          bool
-    Invulnerable    int             // Ticks remaining
+    Invulnerable    int             // Ticks remaining (0 = no)
 }
 
 // PlayerSnake represents a player-controlled snake.
@@ -197,6 +227,7 @@ type PlayerSnake struct {
     *BaseSnake
     ID              int
     Config          *PlayerConfig // Reference to existing PlayerConfig struct (name, keys, stats)
+    HeldItem        ItemType      // Currently held item (ItemNone if empty)
 }
 ```
 
@@ -207,22 +238,22 @@ The map defines the playable area, obstacles, and spawn points.
 **Structs:**
 
 ```go
-type TileType int
-
-const (
-    TileEmpty TileType = iota
-    TileWall
-    TileHazard
-    TileSpawn
-)
+// enables differently rendered tiles and collision properties
+type Tile struct {
+    Name    string
+    IsWall  bool
+    IsSpawn bool
+}
 
 // implements Collidable
 type MapData struct {
-    Width, Height int
-    Tiles         [][]TileType
-    Collider      *CollisionMap    // Optimised collision map
+    Tiles         [][]Tile
+    Collider      *CollisionMap    // Optimised collision map (contains width, height)
     SpawnPoints   []Point          // Slice of values
 }
+
+// BuildCache populates Collider and SpawnPoints from the Tiles grid
+func (m *MapData) BuildCache()
 ```
 
 ### 6. Input System (`input.go`)
@@ -263,14 +294,13 @@ type GameState struct {
     Tick        uint64
     Map         *MapData
     Snakes      map[int]*PlayerSnake // Keyed by player ID
-    Apples      []*Entity            // Collectible apples
-    Items       []*Entity            // Collectible items
-    Entities    []*Entity            // Dynamic entities (Bullets, Farts, Bots)
+    Apples      []Entity             // Collectible apples
+    Items       []Entity             // Collectible items
+    Entities    []Entity             // Dynamic entities (Bullets, Farts, Bots)
     Events      []*GameEvent
 }
 
 type GameSession struct {
-    Config            *GameplayConfig            // Reference to global GameplayConfig
     State             *GameState
     RegisteredPlayers map[int]*PlayerConfig      // Key: ID, Value: Reference to PlayerConfig
     Input             *InputFrame                // Current frame inputs
@@ -283,6 +313,9 @@ type GameSession struct {
 ### 8. Configuration Extensions
 
 To bridge the gap between user-friendly configuration units (floating-point speeds in tiles/sec, durations in seconds) and the integer-based fixed-step simulation, configuration structs will implement getter methods.
+
+**Global Access:**
+The backend logic accesses the global `GPConfig` variable (defined in `config.go`) directly to retrieve gameplay constants during updates and initialization.
 
 **Helpers:**
 
@@ -304,12 +337,24 @@ func (c *GameplayConfig) GetDurationTicks(seconds float64, tps int) int
 
 ### 2. The Update Loop (`GameSession.Update()`)
 1.  **Read Input**: `Session.Input.Process(Session.RegisteredPlayers)` to capture current actions.
-2.  **Update PlayerSnakes**: Call the Update method on each PlayerSnake.
-3.  **Entity Updates**:
+2.  **Item Usage**:
+    - For each player `ID` with `Input.ItemsUsed[ID] == true`:
+        - If `Snakes[ID].HeldItem != ItemNone`, look up logic in `ItemRegistry`.
+        - Execute logic. If returns true, set `HeldItem = ItemNone`.
+3.  **Update PlayerSnakes**: Call the Update method on each PlayerSnake.
+4.  **Entity Updates**:
     - Iterate `State.Apples`, `State.Items`, and `State.Entities`: Call `e.Update(State)`.
     - Handle `LifeTime` expiration.
 4.  **Collision loop**:
-    - For each `Collidable` (Snakes, Entities, Map Tiles), check for collisions between objects that share at minimum one collision layer.
+    - For each `Collidable` (Snakes, Apples, Items, Entities, Map Tiles), check for collisions between objects that share at minimum one collision layer.
+        - proceed in the following order:
+            1. Snakes vs Map
+            2. Snakes vs Snakes
+            3. Snakes vs Apples/Items
+            4. Entities vs Map
+            5. Entities vs Entities
+            6. Entities vs Apples/Items
+            7. Entities vs Snakes
     - Call `OnCollision` on both objects when a collision is detected.
 5.  **Spawning**:
     - Check `len(State.Apples)` and `len(State.Items)`. Spawn new Apple/Item if below target counts.
