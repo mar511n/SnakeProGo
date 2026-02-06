@@ -1,4 +1,4 @@
-package main
+package game
 
 import (
 	"os"
@@ -8,7 +8,6 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// GlobalConfig holds global settings like assets, graphics, audio.
 type GlobalConfig struct {
 	AssetsDir    string `toml:"assets_dir"`    // path to assets directory
 	ScreenWidth  int    `toml:"screen_width"`  // window width in pixels
@@ -22,7 +21,6 @@ type GlobalConfig struct {
 	Vsync        bool   `toml:"vsync"`         // enable vsync
 }
 
-// GameplayConfig holds gameplay tuning constants.
 type GameplayConfig struct {
 	StartSnakeLength    int     `toml:"start_snake_length"`     // in segments
 	SnakeSpeed          int     `toml:"snake_speed"`            // segments/second
@@ -45,7 +43,6 @@ type GameplayConfig struct {
 	FartDamagePerSecond float64 `toml:"fart_damage_per_second"` // lost segments per second inside fart area
 }
 
-// PlayerConfig holds per-player settings.
 type PlayerConfig struct {
 	Name   string            `toml:"name"`    // player name
 	KeyMap map[string]string `toml:"key_map"` // keys for [up/down/left/right] and [turn_left/turn_right] and use_item
@@ -53,22 +50,16 @@ type PlayerConfig struct {
 }
 
 var (
-	// GConfig holds the global configuration.
-	GConfig GlobalConfig
-	// GPConfig holds the gameplay configuration.
+	GConfig  GlobalConfig
 	GPConfig GameplayConfig
-	// PConfigs holds the player configurations, keyed by player name.
 	PConfigs = make(map[string]PlayerConfig)
 
-	// ConfigLoaded tracks if the configuration has been fully loaded
 	ConfigLoaded = false
 )
 
 func LoadConfigs() {
-	// Construct the full path
 	fullConfigDir := filepath.Join(BaseSystemPath, ConfigDir)
 
-	// Ensure config directory exists
 	if _, err := os.Stat(fullConfigDir); os.IsNotExist(err) {
 		os.MkdirAll(fullConfigDir, 0755)
 	}
@@ -77,8 +68,6 @@ func LoadConfigs() {
 	ConfigLoaded = true
 	processGlobalConfigs()
 	loadGameplayConfig()
-	// Player configs are loaded on demand or we can load all found in userconfig/
-	// For now, we instantiate default player configs when they join if not found.
 }
 
 func loadGlobalConfig() {
@@ -104,7 +93,7 @@ func loadGlobalConfig() {
 			TPS:          60,
 			Vsync:        true,
 		}
-		// Save defaults
+
 		saveConfig(path, GConfig)
 	}
 }
@@ -151,7 +140,7 @@ func loadGameplayConfig() {
 			FartSize:            3,
 			FartDamagePerSecond: 1.0,
 		}
-		// Save defaults
+
 		saveConfig(path, GPConfig)
 	}
 }
@@ -161,7 +150,6 @@ func GetPlayerConfig(name string) PlayerConfig {
 		return cfg
 	}
 
-	// Try to load from file
 	userConfigDir := filepath.Join(BaseSystemPath, ConfigDir, "userconfig")
 	os.MkdirAll(userConfigDir, 0755)
 	path := filepath.Join(userConfigDir, name+".toml")
@@ -186,7 +174,7 @@ func GetPlayerConfig(name string) PlayerConfig {
 			},
 			Stats: make(map[string]int),
 		}
-		// Save defaults
+
 		saveConfig(path, cfg)
 	}
 	PConfigs[name] = cfg

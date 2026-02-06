@@ -1,4 +1,4 @@
-package main
+package game
 
 import (
 	"fmt"
@@ -27,7 +27,6 @@ func NewMainMenu() *MainMenu {
 	}
 }
 
-// repeatingKeyPressed return true when key is pressed considering the repeat state.
 func repeatingKeyPressed(key ebiten.Key) bool {
 	const (
 		delay    = 30

@@ -1,4 +1,4 @@
-package main
+package game
 
 var (
 	// BaseSystemPath is the absolute path for the game data
