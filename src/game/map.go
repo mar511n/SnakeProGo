@@ -2,9 +2,10 @@ package game
 
 // enables differently rendered tiles and collision properties
 type Tile struct {
-	Name    string
-	IsWall  bool
-	IsSpawn bool
+	Name     string
+	IsWall   bool
+	IsSpawn  bool
+	SpawnDir Vec2i
 }
 
 // implements Collidable
@@ -12,6 +13,7 @@ type MapData struct {
 	Tiles       [][]Tile
 	Collider    *CollisionMap // Optimised collision map (contains width, height)
 	SpawnPoints []Vec2i
+	SpawnDirs   []Vec2i
 }
 
 func (m *MapData) OnCollision(other Collidable, tile Vec2i, state *GameState) {}
@@ -39,6 +41,7 @@ func (m *MapData) BuildCache() {
 			}
 			if tile.IsSpawn {
 				m.SpawnPoints = append(m.SpawnPoints, Vec2i{X: x, Y: y})
+				m.SpawnDirs = append(m.SpawnDirs, tile.SpawnDir)
 			}
 		}
 	}
@@ -52,7 +55,18 @@ func (m *MapData) String() string {
 			case tile.IsWall:
 				result += "#"
 			case tile.IsSpawn:
-				result += "S"
+				switch tile.SpawnDir {
+				case DirLeft:
+					result += "L"
+				case DirRight:
+					result += "R"
+				case DirUp:
+					result += "U"
+				case DirDown:
+					result += "D"
+				default:
+					result += "S"
+				}
 			default:
 				result += "."
 			}
@@ -62,7 +76,7 @@ func (m *MapData) String() string {
 	return result
 }
 
-// reads a simple tilemap from a string, where each character corresponds to a tile type (e.g. '#' for wall, '.' for empty, 'S' for spawn, '\n' for new row)
+// reads a simple tilemap from a string, where each character corresponds to a tile type
 func NewMapFromString(s string) *MapData {
 	lines := []rune(s)
 	var tiles [][]Tile
@@ -78,8 +92,14 @@ func NewMapFromString(s string) *MapData {
 			currentRow = append(currentRow, Tile{Name: "wall", IsWall: true})
 		case '.':
 			currentRow = append(currentRow, Tile{Name: "empty"})
-		case 'S':
-			currentRow = append(currentRow, Tile{Name: "spawn", IsSpawn: true})
+		case 'L':
+			currentRow = append(currentRow, Tile{Name: "spawn", IsSpawn: true, SpawnDir: DirLeft})
+		case 'R':
+			currentRow = append(currentRow, Tile{Name: "spawn", IsSpawn: true, SpawnDir: DirRight})
+		case 'U':
+			currentRow = append(currentRow, Tile{Name: "spawn", IsSpawn: true, SpawnDir: DirUp})
+		case 'D':
+			currentRow = append(currentRow, Tile{Name: "spawn", IsSpawn: true, SpawnDir: DirDown})
 		default:
 			currentRow = append(currentRow, Tile{Name: "empty"})
 		}

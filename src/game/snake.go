@@ -14,6 +14,17 @@ type BaseSnake struct {
 	ticksSinceMove int             // Counter to track movement timing based on speed
 }
 
+func SpawnSnakeAt(point Vec2i, direction Vec2i, length int) *BaseSnake {
+	return &BaseSnake{
+		Body:           &CollisionTiles{Tiles: []Vec2i{point}},
+		Facing:         direction,
+		NextFacing:     direction,
+		Fett:           length - 1,
+		ticksSinceMove: 0,
+		StatusEffects:  []StatusEffect{},
+	}
+}
+
 func (s *BaseSnake) UpdateEffects(state *GameState) (speed_multiplier float64) {
 	speed_multiplier = 1.0
 	new_status_effects := []StatusEffect{}

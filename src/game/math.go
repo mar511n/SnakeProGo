@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"math/rand"
 )
 
 var (
@@ -92,4 +93,13 @@ func GetUniqueID() uint64 {
 	id := uniqueIDCounter
 	uniqueIDCounter++
 	return id
+}
+
+var RandomSource *rand.Rand
+
+func RandomPosition(width, height int) Vec2i {
+	return Vec2i{
+		X: RandomSource.Intn(width),
+		Y: RandomSource.Intn(height),
+	}
 }

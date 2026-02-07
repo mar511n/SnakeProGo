@@ -19,6 +19,8 @@ type ItemHandler func(userID int, state *GameState) bool
 // Global registry of item behaviors, populated at startup.
 var ItemRegistry = map[ItemType]ItemHandler{}
 
+var ItemChances map[ItemType]float64
+
 type Item struct {
 	*EntityBase
 	ItemType   ItemType
@@ -44,7 +46,24 @@ func NewItem(id uint64, pos Vec2i, itemType ItemType) *Item {
 	}
 }
 
+func GetRandomItemType() ItemType {
+	chance_sum := 0.0
+	for _, chance := range ItemChances {
+		chance_sum += chance
+	}
+	r := RandomSource.Float64() * chance_sum
+	curr := 0.0
+	for itemType, chance := range ItemChances {
+		curr += chance
+		if r < curr {
+			return itemType
+		}
+	}
+	return ItemNone
+}
+
 func init() {
+	ItemChances[ItemSpeed] = GPConfig.ItemSpeedChance
 	//TODO: This is where we would register all item behaviors.
 
 	ItemRegistry[ItemSpeed] = func(userID int, state *GameState) bool {

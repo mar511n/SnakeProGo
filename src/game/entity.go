@@ -3,7 +3,8 @@ package game
 type EntityType int
 
 const (
-	EntityApple EntityType = iota
+	EntityBasic EntityType = iota
+	EntityApple
 	EntityItem
 	EntityBullet
 	EntityBomb

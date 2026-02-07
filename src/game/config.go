@@ -1,6 +1,7 @@
 package game
 
 import (
+	"math/rand"
 	"os"
 	"path/filepath"
 
@@ -32,13 +33,17 @@ type GameplayConfig struct {
 	GhostAppleDamage    int     `toml:"ghost_apple_damage"`     // damage in segments from ghost apples
 	ItemCount           int     `toml:"item_count"`             // number of items on map
 	SnakeSurvivalLength int     `toml:"snake_survival_length"`  // minimum length to survive (i.e. if hit by a bullet, the snake dies if length <= this after the bullet cuts of segments)
-	BulletSpeed         float64 `toml:"bullet_speed"`           // segments/second
-	BulletRange         int     `toml:"bullet_range"`           // in segments
+	ItemSpeedChance     float64 `toml:"item_speed_chance"`      // chance for speed item to spawn
 	SpeedMultiplier     float64 `toml:"speed_multiplier"`       // speed boost multiplier
 	SpeedDuration       float64 `toml:"speed_duration"`         // duration of speed boost in seconds
+	ItemShootingChance  float64 `toml:"item_shooting_chance"`   // chance for shooting item to spawn
+	BulletSpeed         float64 `toml:"bullet_speed"`           // segments/second
+	BulletRange         int     `toml:"bullet_range"`           // in segments
+	ItemBotChance       float64 `toml:"item_bot_chance"`        // chance for bot item to spawn
 	BotSpeed            float64 `toml:"bot_speed"`              // segments/second
 	BotLength           int     `toml:"bot_length"`             // in segments
 	BotDuration         float64 `toml:"bot_duration"`           // duration of bot item in seconds
+	ItemFartChance      float64 `toml:"item_fart_chance"`       // chance for fart item to spawn
 	FartDuration        float64 `toml:"fart_duration"`          // duration of fart item in seconds
 	FartSize            int     `toml:"fart_size"`              // size of fart area in segments
 	FartDamagePerSecond float64 `toml:"fart_damage_per_second"` // lost segments per second inside fart area
@@ -115,6 +120,7 @@ func processGlobalConfigs() {
 	ebiten.SetFullscreen(GConfig.Fullscreen)
 	ebiten.SetTPS(GConfig.TPS)
 	ebiten.SetVsyncEnabled(GConfig.Vsync)
+	RandomSource = rand.New(rand.NewSource(GConfig.RandomSeed))
 }
 
 func loadGameplayConfig() {
@@ -138,13 +144,17 @@ func loadGameplayConfig() {
 			GhostAppleDamage:    1,
 			ItemCount:           4,
 			SnakeSurvivalLength: 2,
-			BulletSpeed:         5.0,
-			BulletRange:         10,
+			ItemSpeedChance:     1.0,
 			SpeedMultiplier:     2.0,
 			SpeedDuration:       5.0,
+			ItemShootingChance:  1.0,
+			BulletSpeed:         5.0,
+			BulletRange:         10,
+			ItemBotChance:       1.0,
 			BotSpeed:            1.3,
 			BotLength:           5,
 			BotDuration:         10.0,
+			ItemFartChance:      1.0,
 			FartDuration:        10.0,
 			FartSize:            3,
 			FartDamagePerSecond: 2.0,

@@ -1,5 +1,10 @@
 package game
 
+type Serializable interface {
+	Encode() ([]byte, error)
+	Decode([]byte) error
+}
+
 type InputHandler interface {
 	HandleInput(input string, state *GameState)
 }

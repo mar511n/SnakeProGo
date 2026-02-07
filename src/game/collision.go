@@ -2,19 +2,32 @@ package game
 
 import "fmt"
 
-func ResolveCollision(a, b Collidable, state *GameState) {
+func ResolveCollision(a, b Collidable, state *GameState) bool {
 	if a.ScanLayers().CollidesWith(b.OwnLayers()) {
 		colliding, tile := a.GetCollider().IsColliding(b.GetCollider())
 		if colliding {
 			if a.GetCollider() == b.GetCollider() {
 				if a.CanSelfCollide() {
 					a.OnCollision(b, tile, state)
+					return true
 				}
 			} else {
 				a.OnCollision(b, tile, state)
+				return true
 			}
 		}
 	}
+	return false
+}
+
+func CheckCollision(layerA, layerB CollisionMask, collObjA, collObjB CollisionObject) (bool, Vec2i) {
+	if layerA.CollidesWith(layerB) {
+		colliding, tile := collObjA.IsColliding(collObjB)
+		if colliding {
+			return true, tile
+		}
+	}
+	return false, Vec2i{}
 }
 
 // CollisionTiles implements CollisionObject for sparse objects (Entities, Snakes)
@@ -85,6 +98,10 @@ func (cm CollisionMask) AddLayer(layer CollisionMask) CollisionMask {
 
 func (cm CollisionMask) RemoveLayer(layer CollisionMask) CollisionMask {
 	return cm &^ layer
+}
+
+func NewCollisionMaskAllLayers() CollisionMask {
+	return LayerWall | LayerSnake | LayerApple | LayerItem | LayerEntity
 }
 
 func (cm CollisionMask) CollidesWith(other CollisionMask) bool {
