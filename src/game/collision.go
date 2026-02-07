@@ -3,39 +3,45 @@ package game
 import "fmt"
 
 func ResolveCollision(a, b Collidable, state *GameState) {
-	if a.ScanLayers().CollidesWith(b.OwnLayers()) && a.GetCollider().IsColliding(b.GetCollider()) {
-		a.OnCollision(b, state)
-	}
-	if b.ScanLayers().CollidesWith(a.OwnLayers()) && b.GetCollider().IsColliding(a.GetCollider()) {
-		b.OnCollision(a, state)
+	if a.ScanLayers().CollidesWith(b.OwnLayers()) {
+		colliding, tile := a.GetCollider().IsColliding(b.GetCollider())
+		if colliding {
+			if a.GetCollider() == b.GetCollider() {
+				if a.CanSelfCollide() {
+					a.OnCollision(b, tile, state)
+				}
+			} else {
+				a.OnCollision(b, tile, state)
+			}
+		}
 	}
 }
 
 // CollisionTiles implements CollisionObject for sparse objects (Entities, Snakes)
 type CollisionTiles struct {
-	Points []Vec2i
+	Tiles []Vec2i
 }
 
-func (c *CollisionTiles) IsColliding(other CollisionObject) bool {
+func (c *CollisionTiles) IsColliding(other CollisionObject) (bool, Vec2i) {
 	switch o := other.(type) {
 	case *CollisionTiles:
 		// Check for point overlaps O(N*M)
-		for _, p1 := range c.Points {
-			for _, p2 := range o.Points {
+		for _, p1 := range c.Tiles {
+			for _, p2 := range o.Tiles {
 				if p1.Equals(p2) {
-					return true
+					return true, p1
 				}
 			}
 		}
 	case *CollisionMap:
 		// Check if any point is in map bounds/walls
-		for _, p := range c.Points {
+		for _, p := range c.Tiles {
 			if o.Contains(p) {
-				return true
+				return true, p
 			}
 		}
 	}
-	return false
+	return false, Vec2i{}
 }
 
 // CollisionMap implements CollisionObject for static map geometry
@@ -54,12 +60,12 @@ func (c *CollisionMap) Contains(p Vec2i) bool {
 	return c.Occupied[pr.X][pr.Y]
 }
 
-func (c *CollisionMap) IsColliding(other CollisionObject) bool {
+func (c *CollisionMap) IsColliding(other CollisionObject) (bool, Vec2i) {
 	switch o := other.(type) {
 	case *CollisionTiles:
 		return o.IsColliding(c)
 	}
-	return false
+	return false, Vec2i{}
 }
 
 type CollisionMask uint16
@@ -82,6 +88,9 @@ func (cm CollisionMask) RemoveLayer(layer CollisionMask) CollisionMask {
 }
 
 func (cm CollisionMask) CollidesWith(other CollisionMask) bool {
+	if cm == LayerNone || other == LayerNone {
+		return false
+	}
 	return cm&other != 0
 }
 

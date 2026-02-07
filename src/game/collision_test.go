@@ -29,20 +29,22 @@ func TestCollisionMask(t *testing.T) {
 
 func TestCollisionTiles(t *testing.T) {
 	tiles1 := &CollisionTiles{
-		Points: []Vec2i{{X: 0, Y: 0}, {X: 1, Y: 1}},
+		Tiles: []Vec2i{{X: 0, Y: 0}, {X: 1, Y: 1}},
 	}
 	tiles2 := &CollisionTiles{
-		Points: []Vec2i{{X: 1, Y: 1}, {X: 2, Y: 2}},
+		Tiles: []Vec2i{{X: 1, Y: 1}, {X: 2, Y: 2}},
 	}
 	tiles3 := &CollisionTiles{
-		Points: []Vec2i{{X: 2, Y: 2}, {X: 3, Y: 3}},
+		Tiles: []Vec2i{{X: 2, Y: 2}, {X: 3, Y: 3}},
 	}
 
-	if !tiles1.IsColliding(tiles2) {
+	if c, tile := tiles1.IsColliding(tiles2); !c {
 		t.Error("Expected collision between tiles1 and tiles2")
+	} else if tile != (Vec2i{X: 1, Y: 1}) {
+		t.Errorf("Expected collision at (1,1), got %v", tile)
 	}
 
-	if tiles1.IsColliding(tiles3) {
+	if c, _ := tiles1.IsColliding(tiles3); c {
 		t.Error("Did not expect collision between tiles1 and tiles3")
 	}
 }
@@ -79,22 +81,26 @@ func TestCollisionMap(t *testing.T) {
 
 	// Test IsColliding with CollisionTiles
 	tilesHit := &CollisionTiles{
-		Points: []Vec2i{{X: 2, Y: 2}},
+		Tiles: []Vec2i{{X: 2, Y: 2}},
 	}
 	tilesMiss := &CollisionTiles{
-		Points: []Vec2i{{X: 0, Y: 0}},
+		Tiles: []Vec2i{{X: 0, Y: 0}},
 	}
 	tilesBounds := &CollisionTiles{
-		Points: []Vec2i{{X: -1, Y: -1}},
+		Tiles: []Vec2i{{X: -1, Y: -1}},
 	}
 
-	if !cm.IsColliding(tilesHit) {
+	if c, tile := cm.IsColliding(tilesHit); !c {
 		t.Error("Expected collision with occupied tile")
+	} else if tile != (Vec2i{X: 2, Y: 2}) {
+		t.Errorf("Expected collision at (2,2), got %v", tile)
 	}
-	if cm.IsColliding(tilesMiss) {
+	if c, _ := cm.IsColliding(tilesMiss); c {
 		t.Error("Did not expect collision with empty tile")
 	}
-	if !cm.IsColliding(tilesBounds) {
+	if c, tile := cm.IsColliding(tilesBounds); !c {
 		t.Error("Expected collision with out of bounds tile")
+	} else if tile != (Vec2i{X: -1, Y: -1}) {
+		t.Errorf("Expected collision at (-1,-1), got %v", tile)
 	}
 }

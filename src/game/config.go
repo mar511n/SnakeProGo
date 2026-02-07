@@ -19,12 +19,13 @@ type GlobalConfig struct {
 	DebugLevel   int     `toml:"debug_level"`   // logging level (0=Error, 1=Warning, 2=Info)
 	TPS          int     `toml:"tps"`           // target ticks per second
 	Vsync        bool    `toml:"vsync"`         // enable vsync
+	RandomSeed   int64   `toml:"random_seed"`   // seed for random number generator
 }
 
 type GameplayConfig struct {
 	StartSnakeLength    int     `toml:"start_snake_length"`     // in segments
 	SnakeSpeed          float64 `toml:"snake_speed"`            // segments/second
-	MapPath             string  `toml:"map_path"`               // path to default map file
+	MapPath             string  `toml:"map_path"`               // relative path from assets to default map file
 	AppleCount          int     `toml:"apple_count"`            // number of apples on map
 	AppleNutrition      int     `toml:"apple_nutrition"`        // length increase per apple
 	AppleRotTime        float64 `toml:"apple_rot_time"`         // time in seconds before apple rots
@@ -52,7 +53,7 @@ type PlayerConfig struct {
 var (
 	GConfig  GlobalConfig
 	GPConfig GameplayConfig
-	PConfigs = make(map[string]PlayerConfig)
+	PConfigs = make(map[string]*PlayerConfig)
 
 	ConfigLoaded = false
 )
@@ -68,6 +69,13 @@ func LoadConfigs() {
 	ConfigLoaded = true
 	processGlobalConfigs()
 	loadGameplayConfig()
+
+	max_speed := GPConfig.SnakeSpeed * GPConfig.SpeedMultiplier
+	if max_speed > float64(GConfig.TPS) {
+		LogError("Max snake speed (%.2f) exceeds TPS (%d). Increase TPS or reduce speed/multiplier!", max_speed, GConfig.TPS)
+	} else if max_speed > float64(GConfig.TPS)/2 {
+		LogWarning("Max snake speed (%.2f) is approaching TPS (%d). Consider increasing TPS or reducing speed/multiplier for smoother gameplay.", max_speed, GConfig.TPS)
+	}
 }
 
 func loadGlobalConfig() {
@@ -92,6 +100,7 @@ func loadGlobalConfig() {
 			DebugLevel:   2,
 			TPS:          60,
 			Vsync:        true,
+			RandomSeed:   0,
 		}
 
 		saveConfig(path, GConfig)
@@ -122,7 +131,7 @@ func loadGameplayConfig() {
 		GPConfig = GameplayConfig{
 			StartSnakeLength:    3,
 			SnakeSpeed:          1.0,
-			MapPath:             filepath.Join(BaseSystemPath, AssetsDir, "maps/default.json"),
+			MapPath:             "maps/default.json",
 			AppleCount:          10,
 			AppleNutrition:      2,
 			AppleRotTime:        60,
@@ -145,7 +154,7 @@ func loadGameplayConfig() {
 	}
 }
 
-func GetPlayerConfig(name string) PlayerConfig {
+func GetPlayerConfig(name string) *PlayerConfig {
 	if cfg, ok := PConfigs[name]; ok {
 		return cfg
 	}
@@ -177,8 +186,8 @@ func GetPlayerConfig(name string) PlayerConfig {
 
 		saveConfig(path, cfg)
 	}
-	PConfigs[name] = cfg
-	return cfg
+	PConfigs[name] = &cfg
+	return &cfg
 }
 
 func saveConfig(path string, v interface{}) {

@@ -85,3 +85,11 @@ func (v Vec2f) String() string {
 func (v Vec2f) ToVec2i() Vec2i {
 	return Vec2i{int(v.X), int(v.Y)}
 }
+
+var uniqueIDCounter uint64 = 1
+
+func GetUniqueID() uint64 {
+	id := uniqueIDCounter
+	uniqueIDCounter++
+	return id
+}
