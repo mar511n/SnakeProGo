@@ -1,7 +1,5 @@
 # Game Backend Implementation Guide
 
-## TODO
-
 This document outlines the architecture and data structures required to implement the authoritative game backend for SnakeProGo. The backend is responsible for maintaining the simulation state, processing input, resolving collisions, and managing the core game loop.
 
 ## Core Architecture

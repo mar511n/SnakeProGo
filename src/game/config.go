@@ -9,36 +9,36 @@ import (
 )
 
 type GlobalConfig struct {
-	AssetsDir    string `toml:"assets_dir"`    // path to assets directory
-	ScreenWidth  int    `toml:"screen_width"`  // window width in pixels
-	ScreenHeight int    `toml:"screen_height"` // window height in pixels
-	Fullscreen   bool   `toml:"fullscreen"`    // start in fullscreen mode
-	MasterVolume int    `toml:"master_volume"` // overall volume percentage
-	MusicVolume  int    `toml:"music_volume"`  // music volume percentage
-	SfxVolume    int    `toml:"sfx_volume"`    // sound effects volume percentage
-	DebugLevel   int    `toml:"debug_level"`   // logging level (0=Error, 1=Warning, 2=Info)
-	TPS          int    `toml:"tps"`           // target ticks per second
-	Vsync        bool   `toml:"vsync"`         // enable vsync
+	AssetsDir    string  `toml:"assets_dir"`    // path to assets directory
+	ScreenWidth  int     `toml:"screen_width"`  // window width in pixels
+	ScreenHeight int     `toml:"screen_height"` // window height in pixels
+	Fullscreen   bool    `toml:"fullscreen"`    // start in fullscreen mode
+	MasterVolume float64 `toml:"master_volume"` // overall volume percentage
+	MusicVolume  float64 `toml:"music_volume"`  // music volume percentage
+	SfxVolume    float64 `toml:"sfx_volume"`    // sound effects volume percentage
+	DebugLevel   int     `toml:"debug_level"`   // logging level (0=Error, 1=Warning, 2=Info)
+	TPS          int     `toml:"tps"`           // target ticks per second
+	Vsync        bool    `toml:"vsync"`         // enable vsync
 }
 
 type GameplayConfig struct {
 	StartSnakeLength    int     `toml:"start_snake_length"`     // in segments
-	SnakeSpeed          int     `toml:"snake_speed"`            // segments/second
+	SnakeSpeed          float64 `toml:"snake_speed"`            // segments/second
 	MapPath             string  `toml:"map_path"`               // path to default map file
 	AppleCount          int     `toml:"apple_count"`            // number of apples on map
 	AppleNutrition      int     `toml:"apple_nutrition"`        // length increase per apple
-	AppleRotTime        int     `toml:"apple_rot_time"`         // time in seconds before apple rots
-	GhostAppleDamage    int     `toml:"ghost_apple_damage"`     // damage per second from ghost apples
+	AppleRotTime        float64 `toml:"apple_rot_time"`         // time in seconds before apple rots
+	GhostAppleDamage    int     `toml:"ghost_apple_damage"`     // damage in segments from ghost apples
 	ItemCount           int     `toml:"item_count"`             // number of items on map
 	SnakeSurvivalLength int     `toml:"snake_survival_length"`  // minimum length to survive (i.e. if hit by a bullet, the snake dies if length <= this after the bullet cuts of segments)
 	BulletSpeed         float64 `toml:"bullet_speed"`           // segments/second
-	BulletRange         float64 `toml:"bullet_range"`           // in segments
+	BulletRange         int     `toml:"bullet_range"`           // in segments
 	SpeedMultiplier     float64 `toml:"speed_multiplier"`       // speed boost multiplier
-	SpeedDuration       int     `toml:"speed_duration"`         // duration of speed boost in seconds
+	SpeedDuration       float64 `toml:"speed_duration"`         // duration of speed boost in seconds
 	BotSpeed            float64 `toml:"bot_speed"`              // segments/second
 	BotLength           int     `toml:"bot_length"`             // in segments
-	BotDuration         int     `toml:"bot_duration"`           // duration of bot item in seconds
-	FartDuration        int     `toml:"fart_duration"`          // duration of fart item in seconds
+	BotDuration         float64 `toml:"bot_duration"`           // duration of bot item in seconds
+	FartDuration        float64 `toml:"fart_duration"`          // duration of fart item in seconds
 	FartSize            int     `toml:"fart_size"`              // size of fart area in segments
 	FartDamagePerSecond float64 `toml:"fart_damage_per_second"` // lost segments per second inside fart area
 }
@@ -121,24 +121,24 @@ func loadGameplayConfig() {
 		LogWarning("Gameplay config not found, using defaults.")
 		GPConfig = GameplayConfig{
 			StartSnakeLength:    3,
-			SnakeSpeed:          10,
+			SnakeSpeed:          1.0,
 			MapPath:             filepath.Join(BaseSystemPath, AssetsDir, "maps/default.json"),
-			AppleCount:          5,
-			AppleNutrition:      1,
-			AppleRotTime:        300,
+			AppleCount:          10,
+			AppleNutrition:      2,
+			AppleRotTime:        60,
 			GhostAppleDamage:    1,
-			ItemCount:           2,
+			ItemCount:           4,
 			SnakeSurvivalLength: 2,
-			BulletSpeed:         0.5,
-			BulletRange:         10.0,
-			SpeedMultiplier:     1.5,
-			SpeedDuration:       300,
-			BotSpeed:            0.3,
+			BulletSpeed:         5.0,
+			BulletRange:         10,
+			SpeedMultiplier:     2.0,
+			SpeedDuration:       5.0,
+			BotSpeed:            1.3,
 			BotLength:           5,
-			BotDuration:         600,
-			FartDuration:        300,
+			BotDuration:         10.0,
+			FartDuration:        10.0,
 			FartSize:            3,
-			FartDamagePerSecond: 1.0,
+			FartDamagePerSecond: 2.0,
 		}
 
 		saveConfig(path, GPConfig)
