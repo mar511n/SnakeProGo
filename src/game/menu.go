@@ -16,15 +16,22 @@ type MainMenu struct {
 	history     []string
 	cursorBlink int
 	players     []string
+	OnStartGame func()
 }
 
-func NewMainMenu() *MainMenu {
+func NewMainMenu(startGameCallback func()) *MainMenu {
 	return &MainMenu{
 		history: []string{
 			"Welcome to SnakeProGo!",
 		},
-		players: []string{},
+		players:     []string{},
+		OnStartGame: startGameCallback,
 	}
+}
+
+func (m *MainMenu) AddHistory(format string, args ...interface{}) {
+	entry := fmt.Sprintf(format, args...)
+	m.history = append(m.history, entry)
 }
 
 func repeatingKeyPressed(key ebiten.Key) bool {
@@ -103,8 +110,7 @@ func (m *MainMenu) processCommand(cmd string) {
 	args := parts[1:]
 
 	switch command {
-	case "addplayer":
-	case "apl":
+	case "addplayer", "apl":
 		if len(args) < 1 {
 			m.history = append(m.history, "Usage: addplayer <name>")
 		} else {
@@ -126,8 +132,7 @@ func (m *MainMenu) processCommand(cmd string) {
 				m.history = append(m.history, fmt.Sprintf("Added player: %s", name))
 			}
 		}
-	case "showconfig":
-	case "sc":
+	case "showconfig", "sc":
 		if len(args) < 1 {
 			m.history = append(m.history, "Usage: showconfig [global/game/<username>]")
 		} else {
@@ -163,8 +168,7 @@ func (m *MainMenu) processCommand(cmd string) {
 				}
 			}
 		}
-	case "removeplayer":
-	case "rpl":
+	case "removeplayer", "rpl":
 		if len(args) < 1 {
 			m.history = append(m.history, "Usage: removeplayer <name>")
 		} else {
@@ -186,20 +190,18 @@ func (m *MainMenu) processCommand(cmd string) {
 				m.history = append(m.history, fmt.Sprintf("Player not found: %s", name))
 			}
 		}
-	case "listplayers":
-	case "lpl":
+	case "listplayers", "lpl":
 		if len(m.players) == 0 {
 			m.history = append(m.history, "No players joined.")
 		} else {
 			m.history = append(m.history, "Current players: "+strings.Join(m.players, ", "))
 		}
-	case "startgame":
-	case "start":
-		m.history = append(m.history, "Starting game... (not implemented)")
-		// TODO: Transition to game state
-	case "quit":
-	case "exit":
-	case "q":
+	case "startgame", "start":
+		m.history = append(m.history, "Starting game...")
+		if m.OnStartGame != nil {
+			m.OnStartGame()
+		}
+	case "quit", "exit", "q":
 		m.history = append(m.history, "Quitting...")
 		os.Exit(0)
 	default:

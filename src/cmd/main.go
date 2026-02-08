@@ -11,27 +11,33 @@ import (
 )
 
 type Game struct {
-	menu *game.MainMenu
+	is_running bool
+	menu       *game.MainMenu
+	session    *game.GameSession
 }
 
 func (g *Game) Update() error {
-	if g.menu == nil {
-		g.menu = game.NewMainMenu()
+	if g.is_running {
+		g.session.Update()
+		return nil
 	}
 	return g.menu.Update()
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	if g.menu != nil {
+	if g.is_running {
+		game.Render(g.session.State, screen)
+	} else {
 		g.menu.Draw(screen)
 	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 640, 480
+	return game.GConfig.ScreenWidth, game.GConfig.ScreenHeight
 }
 
 func main() {
+	ebiten.SetWindowTitle("SnakeProGo")
 	game.LogInfo("Starting SnakeProGo...")
 	userHome, err := os.UserHomeDir()
 	if err != nil {
@@ -49,12 +55,28 @@ func main() {
 			game.FatalError("Failed to create base path %s: %v", game.BaseSystemPath, err)
 		}
 	}
+	game.LogInfo("Using base path: %s", game.BaseSystemPath)
 
 	game.LoadConfigs()
-	// Initialize default player configs to show in list if needed, or wait for addplayer
+	ebitengame := &Game{is_running: false}
+	ebitengame.menu = game.NewMainMenu(func() {
+		ebitengame.session = game.NewGameSession(func(winnerIDs []int) {
+			ebitengame.is_running = false
+			winnernames := make([]string, len(winnerIDs))
+			for i, id := range winnerIDs {
+				if player, ok := ebitengame.session.State.Players[id]; ok {
+					winnernames[i] = player.Config.Name
+				} else {
+					winnernames[i] = "Unknown"
+				}
+			}
+			ebitengame.menu.AddHistory("Game over! Winners: %v", winnernames)
+		})
+		ebitengame.session.Initialize()
+		ebitengame.is_running = true
+	})
 
-	ebiten.SetWindowTitle("SnakeProGo")
-	if err := ebiten.RunGame(&Game{}); err != nil {
+	if err := ebiten.RunGame(ebitengame); err != nil {
 		game.FatalError("Game crashed: %v", err)
 	}
 }

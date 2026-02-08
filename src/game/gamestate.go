@@ -33,13 +33,17 @@ func (s *GameState) CheckPointCollision(tile Vec2i, layer CollisionMask) bool {
 		}
 	}
 	for _, apple := range s.Apples {
-		if coll, _ := CheckCollision(layer, apple.OwnLayers(), collObj, apple.GetCollider()); coll {
-			return true
+		if apple != nil {
+			if coll, _ := CheckCollision(layer, apple.OwnLayers(), collObj, apple.GetCollider()); coll {
+				return true
+			}
 		}
 	}
 	for _, item := range s.Items {
-		if coll, _ := CheckCollision(layer, item.OwnLayers(), collObj, item.GetCollider()); coll {
-			return true
+		if item != nil {
+			if coll, _ := CheckCollision(layer, item.OwnLayers(), collObj, item.GetCollider()); coll {
+				return true
+			}
 		}
 	}
 	for _, entity := range s.Entities {
@@ -102,6 +106,7 @@ type GameSession struct {
 }
 
 func (s *GameSession) Initialize() {
+	InitializeItems()
 	s.State.Apples = make([]*Apple, GPConfig.AppleCount)
 	s.State.Items = make([]*Item, GPConfig.ItemCount)
 	for i := 0; i < GPConfig.AppleCount; i++ {
@@ -123,11 +128,7 @@ func (s *GameSession) Update() {
 	// use items
 	for id, player := range s.State.Players {
 		if s.Input.ItemsUsed[id] && player.HeldItem != ItemNone {
-			if handler, ok := ItemRegistry[player.HeldItem]; ok {
-				if handler(id, s.State) {
-					player.HeldItem = ItemNone
-				}
-			}
+			player.UseItem(s.State)
 		}
 	}
 	// update entities
@@ -156,13 +157,13 @@ func (s *GameSession) Update() {
 	}
 	total_collisions := 0
 	for i := 0; i < len(collidables); i++ {
-		for j := 0; j < i; j++ {
+		for j := 0; j < len(collidables); j++ {
 			if ResolveCollision(collidables[i], collidables[j], s.State) {
 				total_collisions++
 			}
 		}
 	}
-	LogInfo("Total collisions this tick: %d", total_collisions)
+
 	// spawn new apples/items if needed
 	for ai := range s.State.Apples {
 		if s.State.Apples[ai].IsConsumed {
@@ -202,12 +203,11 @@ func NewGameSession(gameoverCallback func(winnerIDs []int)) *GameSession {
 			LogError("Not enough spawn points for players! Player %s cannot be spawned.", pname)
 			continue
 		}
-		players[id] = &PlayerSnake{
-			BaseSnake: SpawnSnakeAt(mapData.SpawnPoints[idx], mapData.SpawnDirs[idx], GPConfig.StartSnakeLength),
-			ID:        id,
-			Config:    PConfigs[pname],
-			HeldItem:  ItemNone,
-		}
+		players[id] = NewPlayerSnake(
+			NewBaseSnake(mapData.SpawnPoints[idx], mapData.SpawnDirs[idx], GPConfig.StartSnakeLength),
+			id,
+			PConfigs[pname],
+		)
 		idx++
 		LogInfo("Registered player %s with ID %d", pname, id)
 	}

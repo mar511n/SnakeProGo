@@ -12,6 +12,27 @@ const (
 	ItemFart
 )
 
+func (it ItemType) String() string {
+	switch it {
+	case ItemNone:
+		return "None"
+	case ItemSpeed:
+		return "Speed Boost"
+	case ItemRevive:
+		return "Revive"
+	case ItemShooting:
+		return "Shooting"
+	case ItemBomb:
+		return "Bomb"
+	case ItemBot:
+		return "Bot"
+	case ItemFart:
+		return "Fart"
+	default:
+		return "Unknown"
+	}
+}
+
 // ItemHandler defines the effect of using an item.
 // It returns true if the item was successfully used (and should be consumed).
 type ItemHandler func(userID int, state *GameState) bool
@@ -62,7 +83,9 @@ func GetRandomItemType() ItemType {
 	return ItemNone
 }
 
-func init() {
+func InitializeItems() {
+	ItemChances = make(map[ItemType]float64)
+	ItemRegistry = make(map[ItemType]ItemHandler)
 	ItemChances[ItemSpeed] = GPConfig.ItemSpeedChance
 	//TODO: This is where we would register all item behaviors.
 
@@ -72,7 +95,6 @@ func init() {
 			LogWarning("Player %d not found while trying to use Speed Item", userID)
 			return false
 		}
-		LogInfo("Player %d used Speed Item", userID)
 		state.Players[userID].StatusEffects = append(state.Players[userID].StatusEffects, &SpeedBoostEffect{
 			Duration:   int(GPConfig.SpeedDuration * float64(GConfig.TPS)),
 			Multiplier: GPConfig.SpeedMultiplier,

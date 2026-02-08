@@ -48,9 +48,16 @@ func (m *MapData) BuildCache() {
 }
 
 func (m *MapData) String() string {
+	if len(m.Tiles) == 0 {
+		return ""
+	}
+	width := len(m.Tiles)
+	height := len(m.Tiles[0])
+
 	result := ""
-	for _, row := range m.Tiles {
-		for _, tile := range row {
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			tile := m.Tiles[x][y]
 			switch {
 			case tile.IsWall:
 				result += "#"
@@ -79,13 +86,13 @@ func (m *MapData) String() string {
 // reads a simple tilemap from a string, where each character corresponds to a tile type
 func NewMapFromString(s string) *MapData {
 	lines := []rune(s)
-	var tiles [][]Tile
+	var rows [][]Tile
 	var currentRow []Tile
 	for _, char := range lines {
 		switch char {
 		case '\n':
 			if len(currentRow) > 0 {
-				tiles = append(tiles, currentRow)
+				rows = append(rows, currentRow)
 				currentRow = []Tile{}
 			}
 		case '#':
@@ -100,12 +107,36 @@ func NewMapFromString(s string) *MapData {
 			currentRow = append(currentRow, Tile{Name: "spawn", IsSpawn: true, SpawnDir: DirUp})
 		case 'D':
 			currentRow = append(currentRow, Tile{Name: "spawn", IsSpawn: true, SpawnDir: DirDown})
+		case 'S':
+			currentRow = append(currentRow, Tile{Name: "spawn", IsSpawn: true})
 		default:
 			currentRow = append(currentRow, Tile{Name: "empty"})
 		}
 	}
 	if len(currentRow) > 0 {
-		tiles = append(tiles, currentRow)
+		rows = append(rows, currentRow)
+	}
+
+	if len(rows) == 0 {
+		return &MapData{Tiles: [][]Tile{}}
+	}
+
+	height := len(rows)
+	width := len(rows[0])
+
+	tiles := make([][]Tile, width)
+	for x := range tiles {
+		tiles[x] = make([]Tile, height)
+	}
+
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			if x < len(rows[y]) {
+				tiles[x][y] = rows[y][x]
+			} else {
+				tiles[x][y] = Tile{Name: "empty"}
+			}
+		}
 	}
 
 	mapData := &MapData{Tiles: tiles}

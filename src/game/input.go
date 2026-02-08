@@ -41,7 +41,7 @@ func (i *InputFrame) Process(playerConfigs map[int]*PlayerConfig) {
 		"turn_right": ActionTurnRight,
 	}
 
-	keys := inpututil.AppendPressedKeys(nil)
+	keys := inpututil.AppendJustPressedKeys(nil)
 
 	for pID, config := range playerConfigs {
 		i.Directions[pID] = ActionNone

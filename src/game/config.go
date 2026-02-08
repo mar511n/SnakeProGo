@@ -10,7 +10,7 @@ import (
 )
 
 type GlobalConfig struct {
-	AssetsDir    string  `toml:"assets_dir"`    // path to assets directory
+	AssetsDir    string  `toml:"assets_dir"`    // relative path to assets directory
 	ScreenWidth  int     `toml:"screen_width"`  // window width in pixels
 	ScreenHeight int     `toml:"screen_height"` // window height in pixels
 	Fullscreen   bool    `toml:"fullscreen"`    // start in fullscreen mode
@@ -95,7 +95,7 @@ func loadGlobalConfig() {
 	} else {
 		LogWarning("Global config not found, using defaults.")
 		GConfig = GlobalConfig{
-			AssetsDir:    filepath.Join(BaseSystemPath, AssetsDir),
+			AssetsDir:    AssetsDir,
 			ScreenWidth:  1280,
 			ScreenHeight: 720,
 			Fullscreen:   false,
@@ -136,8 +136,8 @@ func loadGameplayConfig() {
 		LogWarning("Gameplay config not found, using defaults.")
 		GPConfig = GameplayConfig{
 			StartSnakeLength:    3,
-			SnakeSpeed:          1.0,
-			MapPath:             "maps/default.json",
+			SnakeSpeed:          2.0,
+			MapPath:             "maps/default.txt",
 			AppleCount:          10,
 			AppleNutrition:      2,
 			AppleRotTime:        60,
@@ -187,8 +187,8 @@ func GetPlayerConfig(name string) *PlayerConfig {
 				"down":       ebiten.KeyS.String(),
 				"left":       ebiten.KeyA.String(),
 				"right":      ebiten.KeyD.String(),
-				"turn_left":  ebiten.KeyA.String(),
-				"turn_right": ebiten.KeyD.String(),
+				"turn_left":  ebiten.KeyLeft.String(),
+				"turn_right": ebiten.KeyRight.String(),
 				"use_item":   ebiten.KeySpace.String(),
 			},
 			Stats: make(map[string]int),
