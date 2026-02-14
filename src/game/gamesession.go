@@ -11,13 +11,14 @@ import (
 type GameSession struct {
 	State             *GameState
 	RegisteredPlayers map[int]*PlayerConfig // Key: ID, Value: Reference to PlayerConfig
-	Input             *InputFrame           // Current frame inputs
-	WindConditions    []CheckWinCondition   // Conditions to check for victory
-	OnGameOver        func(winnerIDs []int) // Callback for game over, with winner IDs
-	History           [][]byte              // List of serialized GameStates for replay
-	HistoryTicks      []uint64              // Corresponding ticks for each entry in History
-	HistorySize       int                   // Number of bytes currently stored in History (for memory management)
-	Encoder           *msgpack.Encoder
+	//Input             *InputFrame           // Current frame inputs
+	WindConditions []CheckWinCondition   // Conditions to check for victory
+	OnGameOver     func(winnerIDs []int) // Callback for game over, with winner IDs
+	History        [][]byte              // List of serialized GameStates for replay
+	HistoryTicks   []uint64              // Corresponding ticks for each entry in History
+	HistorySize    int                   // Number of bytes currently stored in History (for memory management)
+	Encoder        *msgpack.Encoder
+	inputprocessor InputProcessor
 }
 
 func (s *GameSession) Initialize() {
@@ -39,15 +40,15 @@ func (s *GameSession) Initialize() {
 func (s *GameSession) Update() {
 	s.State.Tick++
 	// process input
-	s.Input.Process(s.RegisteredPlayers)
+	input := s.inputprocessor(s.RegisteredPlayers)
 	// update players
 	for id, player := range s.State.Players {
-		player.HandleInput(s.Input.Directions[id], s.State)
+		player.HandleInput(input.Directions[id], s.State)
 		player.Update(s.State)
 	}
 	// use items
 	for id, player := range s.State.Players {
-		if s.Input.ItemsUsed[id] && player.HeldItem != ItemNone {
+		if input.ItemsUsed[id] && player.HeldItem != ItemNone {
 			player.UseItem(s.State)
 		}
 	}
@@ -96,18 +97,11 @@ func (s *GameSession) Update() {
 		}
 	}
 
-	b, err := s.State.Encode()
-	if err != nil {
-		LogError("Failed to serialize game state for history: %v", err)
-	} else {
-		LogInfo("GOB encoding produced %d bytes", len(b))
-	}
-
 	//b, err := msgpack.Marshal(s.State)
 	var buf bytes.Buffer
 	s.Encoder.Reset(&buf)
-	err = s.Encoder.Encode(s.State)
-	b = buf.Bytes()
+	err := s.Encoder.Encode(s.State)
+	b := buf.Bytes()
 	msgpack.PutEncoder(s.Encoder)
 
 	if err != nil {
@@ -115,7 +109,7 @@ func (s *GameSession) Update() {
 	} else {
 		// check if b is different from the last entry in s.History to avoid storing duplicate states
 		if len(s.History) == 0 || !bytes.Equal(b, s.History[len(s.History)-1]) {
-			LogInfo("Storing game state for history (tick %d, size %d)", s.State.Tick, len(b))
+			//LogInfo("Storing game state for history (tick %d, size %d)", s.State.Tick, len(b))
 			s.History = append(s.History, b)
 			s.HistoryTicks = append(s.HistoryTicks, s.State.Tick)
 			s.HistorySize += len(b)
@@ -187,10 +181,10 @@ func NewGameSession(gameoverCallback func(winnerIDs []int)) *GameSession {
 	session := &GameSession{
 		State:             state,
 		RegisteredPlayers: pconfigs,
-		Input:             &InputFrame{},
 		WindConditions:    []CheckWinCondition{CheckLastOneStanding},
 		OnGameOver:        gameoverCallback,
 		History:           [][]byte{},
+		inputprocessor:    DefaultInputProcessor,
 	}
 	session.Initialize()
 	return session

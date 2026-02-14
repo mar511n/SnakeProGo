@@ -78,3 +78,9 @@ func (i *InputFrame) Process(playerConfigs map[int]*PlayerConfig) {
 		}
 	}
 }
+
+func DefaultInputProcessor(playerConfigs map[int]*PlayerConfig) *InputFrame {
+	input := &InputFrame{}
+	input.Process(playerConfigs)
+	return input
+}

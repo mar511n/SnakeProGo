@@ -83,11 +83,11 @@ func (m *MainMenu) Draw(screen *ebiten.Image) {
 		"----------------------------------------\n"
 
 	// Show last N lines of history + current input
-	const maxLines = 20
+	var maxLines = GConfig.ScreenHeight / 16
 
 	start := 0
 	if len(m.history) > maxLines {
-		start = len(m.history) - maxLines
+		start = len(m.history) - maxLines + 8 + 1
 	}
 
 	displayText := header + strings.Join(m.history[start:], "\n")

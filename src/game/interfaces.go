@@ -2,6 +2,8 @@ package game
 
 import "github.com/hajimehoshi/ebiten/v2"
 
+type InputProcessor func(playerConfigs map[int]*PlayerConfig) *InputFrame
+
 type Renderer interface {
 	InitRender(useAntialias bool, state *GameState)
 	Render(state *GameState, screen *ebiten.Image)
