@@ -10,19 +10,20 @@ import (
 )
 
 type GlobalConfig struct {
-	ResDir       string  `toml:"res_dir"`       // relative path to res directory
-	ScreenWidth  int     `toml:"screen_width"`  // window width in pixels
-	ScreenHeight int     `toml:"screen_height"` // window height in pixels
-	Fullscreen   bool    `toml:"fullscreen"`    // start in fullscreen mode
-	MasterVolume float64 `toml:"master_volume"` // overall volume percentage
-	MusicVolume  float64 `toml:"music_volume"`  // music volume percentage
-	SfxVolume    float64 `toml:"sfx_volume"`    // sound effects volume percentage
-	DebugLevel   int     `toml:"debug_level"`   // logging level (0=Error, 1=Warning, 2=Info)
-	TPS          int     `toml:"tps"`           // target ticks per second
-	Vsync        bool    `toml:"vsync"`         // enable vsync
-	RandomSeed   int64   `toml:"random_seed"`   // seed for random number generator
-	DisplayFPS   bool    `toml:"display_fps"`   // whether to display FPS counter
-	DisplayTPS   bool    `toml:"display_tps"`   // whether to display TPS counter
+	ResDir          string  `toml:"res_dir"`           // relative path to res directory
+	ScreenWidth     int     `toml:"screen_width"`      // window width in pixels
+	ScreenHeight    int     `toml:"screen_height"`     // window height in pixels
+	Fullscreen      bool    `toml:"fullscreen"`        // start in fullscreen mode
+	MasterVolume    float64 `toml:"master_volume"`     // overall volume percentage
+	MusicVolume     float64 `toml:"music_volume"`      // music volume percentage
+	SfxVolume       float64 `toml:"sfx_volume"`        // sound effects volume percentage
+	DebugLevel      int     `toml:"debug_level"`       // logging level (0=Error, 1=Warning, 2=Info)
+	TPS             int     `toml:"tps"`               // target ticks per second
+	Vsync           bool    `toml:"vsync"`             // enable vsync
+	RandomSeed      int64   `toml:"random_seed"`       // seed for random number generator
+	DisplayFPS      bool    `toml:"display_fps"`       // whether to display FPS counter
+	DisplayTPS      bool    `toml:"display_tps"`       // whether to display TPS counter
+	AudioSampleRate int     `toml:"audio_sample_rate"` // sample rate for audio playback
 }
 
 type GameplayConfig struct {
@@ -98,19 +99,20 @@ func loadGlobalConfig() {
 	} else {
 		LogWarning("Global config not found, using defaults.")
 		GConfig = GlobalConfig{
-			ResDir:       ResDir,
-			ScreenWidth:  1920,
-			ScreenHeight: 1080,
-			Fullscreen:   true,
-			MasterVolume: 100,
-			MusicVolume:  80,
-			SfxVolume:    100,
-			DebugLevel:   2,
-			TPS:          60,
-			Vsync:        false,
-			RandomSeed:   0,
-			DisplayFPS:   true,
-			DisplayTPS:   true,
+			ResDir:          ResDir,
+			ScreenWidth:     1920,
+			ScreenHeight:    1080,
+			Fullscreen:      true,
+			MasterVolume:    100,
+			MusicVolume:     80,
+			SfxVolume:       100,
+			DebugLevel:      2,
+			TPS:             60,
+			Vsync:           false,
+			RandomSeed:      0,
+			DisplayFPS:      true,
+			DisplayTPS:      true,
+			AudioSampleRate: 48000,
 		}
 
 		saveConfig(path, GConfig)

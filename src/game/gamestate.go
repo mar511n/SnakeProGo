@@ -179,6 +179,9 @@ func (s *GameSession) Update() {
 	for _, condition := range s.WindConditions {
 		game_over, winnerIDs := condition(s.State)
 		if game_over {
+			if len(winnerIDs) > 0 {
+				PlaySound("Win")
+			}
 			LogInfo("Game over! Winners: %v", winnerIDs)
 			if s.OnGameOver != nil {
 				s.OnGameOver(winnerIDs)

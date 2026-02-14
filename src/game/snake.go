@@ -233,6 +233,7 @@ func (s *PlayerSnake) UseItem(state *GameState) {
 func DiePlayer(si *BaseSnake, reason string, state *GameState) {
 	// TODO: add death to stats
 	// TODO: handle ghost behavior
+	PlaySound("Dead")
 	s, ok := si.Owner.(*PlayerSnake)
 	if !ok {
 		LogWarning("DiePlayer called on BaseSnake with non-PlayerSnake owner")
@@ -261,9 +262,11 @@ func (s *PlayerSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state 
 			LogInfo("Snake %v killed snake %v by collision at %v", s.ID, o.ID, tile)
 		}
 	case *Apple:
+		PlaySound("Eating")
 		s.Fett += o.Nutrition
 		o.IsConsumed = true
 	case *Item:
+		PlaySound("Item")
 		s.HeldItem = o.ItemType
 		o.IsConsumed = true
 	default:

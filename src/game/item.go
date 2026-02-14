@@ -116,6 +116,7 @@ func InitializeItems() {
 			LogWarning("Player %d not found while trying to use Speed Item", userID)
 			return false
 		}
+		PlaySound("Speed")
 		state.Players[userID].StatusEffects = append(state.Players[userID].StatusEffects, &SpeedBoostEffect{
 			Duration:   int(GPConfig.SpeedDuration * float64(GConfig.TPS)),
 			Multiplier: GPConfig.SpeedMultiplier,

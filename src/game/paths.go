@@ -46,14 +46,14 @@ var (
 // Sounds files are all stored within the "Sounds" directory. Subdirectories are treated as different sounds of the same type, which are randomly chosen when requested.
 type ResourceManager struct {
 	Images map[string]map[string]*ebiten.Image // category -> name -> image
-	Sounds map[string][]string                 // name -> list of file paths for sound files
+	Sounds map[string][]SoundData              // name -> list of file paths for sound files
 	Icons  []image.Image                       // list of icons
 }
 
-func (rm *ResourceManager) RandomSound(name string) (string, bool) {
+func (rm *ResourceManager) RandomSound(name string) (SoundData, bool) {
 	soundList, exists := rm.Sounds[name]
 	if !exists || len(soundList) == 0 {
-		return "", false
+		return nil, false
 	}
 	randomIndex := RandomSource.Intn(len(soundList))
 	return soundList[randomIndex], true
@@ -61,7 +61,7 @@ func (rm *ResourceManager) RandomSound(name string) (string, bool) {
 
 func (rm *ResourceManager) LoadAssets(assetspath, images, sounds, icons string) {
 	rm.Images = make(map[string]map[string]*ebiten.Image)
-	rm.Sounds = make(map[string][]string)
+	rm.Sounds = make(map[string][]SoundData)
 	rm.Icons = make([]image.Image, 0)
 
 	// Load Images
@@ -116,7 +116,7 @@ func (rm *ResourceManager) LoadAssets(assetspath, images, sounds, icons string) 
 		for _, entry := range soundEntries {
 			if entry.IsDir() {
 				name := entry.Name()
-				var soundList []string
+				var soundList []SoundData
 
 				namePath := filepath.Join(soundsPath, name)
 				files, err := os.ReadDir(namePath)
@@ -130,24 +130,24 @@ func (rm *ResourceManager) LoadAssets(assetspath, images, sounds, icons string) 
 						continue
 					}
 					ext := strings.ToLower(filepath.Ext(file.Name()))
-					if ext != ".wav" && ext != ".mp3" {
+					if ext != ".wav" {
 						continue
 					}
 
 					fullPath := filepath.Join(namePath, file.Name())
-					soundList = append(soundList, fullPath)
+					soundList = append(soundList, SoundDataFromFile(fullPath))
 				}
 				rm.Sounds[name] = soundList
 				LogInfo("Loaded sound '%s' with %d variations", name, len(soundList))
 			} else {
 				ext := strings.ToLower(filepath.Ext(entry.Name()))
-				if ext != ".wav" && ext != ".mp3" {
+				if ext != ".wav" {
 					continue
 				}
 
 				name := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
 				fullPath := filepath.Join(soundsPath, entry.Name())
-				rm.Sounds[name] = []string{fullPath}
+				rm.Sounds[name] = []SoundData{SoundDataFromFile(fullPath)}
 				LogInfo("Loaded sound '%s'", name)
 			}
 		}

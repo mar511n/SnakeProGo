@@ -83,6 +83,14 @@ func main() {
 	ebitengame.resources.LoadAssets(filepath.Join(game.BaseSystemPath, game.ResDir, game.AssetsDir), "Images", "Sounds", "Icons")
 	ebiten.SetWindowIcon(ebitengame.resources.Icons)
 
+	game.InitSound(ebitengame.resources)
+	sound, ok := ebitengame.resources.RandomSound("Revive")
+	if ok {
+		sound.GetPlayer().Play()
+	} else {
+		game.LogWarning("No 'Revive' sound found to play on startup.")
+	}
+
 	if err := ebiten.RunGame(ebitengame); err != nil {
 		game.FatalError("Game crashed: %v", err)
 	}
