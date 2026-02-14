@@ -1,6 +1,15 @@
 package game
 
+import "github.com/hajimehoshi/ebiten/v2"
+
+type Renderer interface {
+	InitRender(useAntialias bool, state *GameState)
+	Render(state *GameState, screen *ebiten.Image)
+}
+
 type Serializable interface {
+	EncodeInit() ([]byte, error)
+	DecodeInit([]byte) error
 	Encode() ([]byte, error)
 	Decode([]byte) error
 }

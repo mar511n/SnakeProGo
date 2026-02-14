@@ -16,6 +16,7 @@ type BaseSnake struct {
 	ticksSinceMove int             // Counter to track movement timing based on speed
 	Die            func(s *BaseSnake, reason string, state *GameState)
 	Owner          interface{}
+	markedForDeath string
 }
 
 func NewBaseSnake(spawnpoint Vec2i, direction Vec2i, length int) *BaseSnake {
@@ -81,6 +82,11 @@ func (s *BaseSnake) Update(state *GameState) {
 	if s.IsDead() {
 		s.UpdateEffects(state)
 	} else {
+		if s.markedForDeath != "" {
+			s.Die(s, s.markedForDeath, state)
+			s.markedForDeath = ""
+			return
+		}
 		speed_multiplier := s.UpdateEffects(state)
 		s.UpdateMovement(state, speed_multiplier)
 	}
@@ -93,7 +99,7 @@ func (s *BaseSnake) CheckSelfCollision(other Collidable, state *GameState) (cons
 		head_tile := s.Body.Tiles[0]
 		for _, body_tile := range s.Body.Tiles[1:] {
 			if head_tile.Equals(body_tile) {
-				s.Die(s, "self collision", state)
+				s.markedForDeath = "self collision"
 				return true
 			}
 		}
@@ -103,7 +109,7 @@ func (s *BaseSnake) CheckSelfCollision(other Collidable, state *GameState) (cons
 }
 func (s *BaseSnake) CheckWallCollision(other Collidable, state *GameState) (consumed bool) {
 	if _, ok := other.GetCollider().(*CollisionMap); ok {
-		s.Die(s, "wall collision", state)
+		s.markedForDeath = "wall collision"
 		return true
 	}
 	return false
@@ -116,7 +122,7 @@ func (s *BaseSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state *G
 		// handle snake-snake collision
 		if tile.Equals(o.Body.Tiles[0]) {
 			// own head collided with other snake (or both heads collided)
-			s.Die(s, "snake collision", state)
+			s.markedForDeath = "snake collision"
 		} else {
 			// other snake's head collided with own body - add a kill to own score
 			LogInfo("Snake %v killed snake %v by collision at %v", s.GetOwner(), o.GetOwner(), tile)
@@ -152,18 +158,20 @@ func (s *BaseSnake) CanSelfCollide() bool         { return true }
 // PlayerSnake represents a player-controlled snake. Implements InputHandler and embeds BaseSnake.
 type PlayerSnake struct {
 	*BaseSnake
-	ID       int
-	Config   *PlayerConfig // Reference to existing PlayerConfig struct (name, keys, stats)
-	HeldItem ItemType      // Currently held item (ItemNone if empty)
+	ID         int
+	Config     *PlayerConfig // Reference to existing PlayerConfig struct (name, keys, stats)
+	HeldItem   ItemType      // Currently held item (ItemNone if empty)
+	InputQueue []PlayerActionTurn
 }
 
 func NewPlayerSnake(base *BaseSnake, id int, config *PlayerConfig) *PlayerSnake {
 	base.Die = DiePlayer
 	sn := &PlayerSnake{
-		BaseSnake: base,
-		ID:        id,
-		Config:    config,
-		HeldItem:  ItemNone,
+		BaseSnake:  base,
+		ID:         id,
+		Config:     config,
+		HeldItem:   ItemNone,
+		InputQueue: make([]PlayerActionTurn, 0, 20),
 	}
 	sn.Owner = sn
 	return sn
@@ -171,8 +179,27 @@ func NewPlayerSnake(base *BaseSnake, id int, config *PlayerConfig) *PlayerSnake 
 
 func (s *PlayerSnake) GetOwner() interface{} { return s }
 
-func (s *PlayerSnake) HandleInput(action PlayerAction, state *GameState) {
-	switch action {
+func (s *PlayerSnake) HandleInput(new_action PlayerActionTurn, state *GameState) {
+	if len(s.InputQueue) < GPConfig.InputQueueSize && new_action != ActionNone {
+		// append fresh action to input queue
+		s.InputQueue = append(s.InputQueue, new_action)
+	}
+
+	if s.NextFacing != s.Facing {
+		return
+	}
+	// take s.InputQueue[0], check if it's a valid direction change, and if so set NextFacing and pop it from the queue
+	// if not valid, just pop it from the queue and check the next one until we find a valid one or the queue is empty
+	next_action := ActionNone
+	for len(s.InputQueue) > 0 {
+		action := s.InputQueue[0]
+		s.InputQueue = s.InputQueue[1:]
+		if action.IsValid(s.Facing) {
+			next_action = action
+			break
+		}
+	}
+	switch next_action {
 	case ActionUp:
 		s.NextFacing = Vec2i{X: 0, Y: -1}
 	case ActionDown:
@@ -185,6 +212,8 @@ func (s *PlayerSnake) HandleInput(action PlayerAction, state *GameState) {
 		s.NextFacing = s.Facing.Rotate90(-1)
 	case ActionTurnRight:
 		s.NextFacing = s.Facing.Rotate90(1)
+	default:
+		s.NextFacing = s.Facing
 	}
 }
 
@@ -226,7 +255,7 @@ func (s *PlayerSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state 
 		// handle snake-snake collision
 		if tile.Equals(s.Body.Tiles[0]) {
 			// own head collided with other snake (or both heads collided)
-			s.Die(s.BaseSnake, fmt.Sprintf("snake collision with %d", o.ID), state)
+			s.markedForDeath = fmt.Sprintf("snake collision with %d", o.ID)
 		} else if tile.Equals(o.Body.Tiles[0]) {
 			// other snake's head collided with own body - add a kill to own score
 			LogInfo("Snake %v killed snake %v by collision at %v", s.ID, o.ID, tile)

@@ -10,7 +10,7 @@ import (
 )
 
 type GlobalConfig struct {
-	AssetsDir    string  `toml:"assets_dir"`    // relative path to assets directory
+	ResDir       string  `toml:"res_dir"`       // relative path to res directory
 	ScreenWidth  int     `toml:"screen_width"`  // window width in pixels
 	ScreenHeight int     `toml:"screen_height"` // window height in pixels
 	Fullscreen   bool    `toml:"fullscreen"`    // start in fullscreen mode
@@ -21,10 +21,13 @@ type GlobalConfig struct {
 	TPS          int     `toml:"tps"`           // target ticks per second
 	Vsync        bool    `toml:"vsync"`         // enable vsync
 	RandomSeed   int64   `toml:"random_seed"`   // seed for random number generator
+	DisplayFPS   bool    `toml:"display_fps"`   // whether to display FPS counter
+	DisplayTPS   bool    `toml:"display_tps"`   // whether to display TPS counter
 }
 
 type GameplayConfig struct {
 	StartSnakeLength    int     `toml:"start_snake_length"`     // in segments
+	InputQueueSize      int     `toml:"input_queue_size"`       // max number of buffered input actions for snakes
 	SnakeSpeed          float64 `toml:"snake_speed"`            // segments/second
 	MapPath             string  `toml:"map_path"`               // relative path from assets to default map file
 	AppleCount          int     `toml:"apple_count"`            // number of apples on map
@@ -95,17 +98,19 @@ func loadGlobalConfig() {
 	} else {
 		LogWarning("Global config not found, using defaults.")
 		GConfig = GlobalConfig{
-			AssetsDir:    AssetsDir,
-			ScreenWidth:  1280,
-			ScreenHeight: 720,
-			Fullscreen:   false,
+			ResDir:       ResDir,
+			ScreenWidth:  1920,
+			ScreenHeight: 1080,
+			Fullscreen:   true,
 			MasterVolume: 100,
 			MusicVolume:  80,
 			SfxVolume:    100,
 			DebugLevel:   2,
 			TPS:          60,
-			Vsync:        true,
+			Vsync:        false,
 			RandomSeed:   0,
+			DisplayFPS:   true,
+			DisplayTPS:   true,
 		}
 
 		saveConfig(path, GConfig)
@@ -113,8 +118,8 @@ func loadGlobalConfig() {
 }
 
 func processGlobalConfigs() {
-	if GConfig.AssetsDir != "" {
-		AssetsDir = GConfig.AssetsDir
+	if GConfig.ResDir != "" {
+		ResDir = GConfig.ResDir
 	}
 	ebiten.SetWindowSize(GConfig.ScreenWidth, GConfig.ScreenHeight)
 	ebiten.SetFullscreen(GConfig.Fullscreen)
@@ -135,18 +140,19 @@ func loadGameplayConfig() {
 	} else {
 		LogWarning("Gameplay config not found, using defaults.")
 		GPConfig = GameplayConfig{
-			StartSnakeLength:    3,
-			SnakeSpeed:          2.0,
+			StartSnakeLength:    4,
+			InputQueueSize:      4,
+			SnakeSpeed:          4.0,
 			MapPath:             "maps/default.txt",
 			AppleCount:          10,
 			AppleNutrition:      2,
 			AppleRotTime:        60,
 			GhostAppleDamage:    1,
-			ItemCount:           4,
+			ItemCount:           2,
 			SnakeSurvivalLength: 2,
 			ItemSpeedChance:     1.0,
-			SpeedMultiplier:     2.0,
-			SpeedDuration:       5.0,
+			SpeedMultiplier:     2.5,
+			SpeedDuration:       4.0,
 			ItemShootingChance:  1.0,
 			BulletSpeed:         5.0,
 			BulletRange:         10,

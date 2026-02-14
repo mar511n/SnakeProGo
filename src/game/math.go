@@ -49,6 +49,23 @@ func (v Vec2i) Rotate90(num_times int) Vec2i {
 	}
 }
 
+func (v Vec2i) Orientation() int {
+	if v.X == 0 {
+		if v.Y > 0 {
+			return 1 // up
+		} else if v.Y < 0 {
+			return 3 // down
+		}
+	} else if v.Y == 0 {
+		if v.X > 0 {
+			return 0 // right
+		} else if v.X < 0 {
+			return 2 // left
+		}
+	}
+	return -1
+}
+
 func (v Vec2i) String() string {
 	return fmt.Sprintf("(%d, %d)", v.X, v.Y)
 }

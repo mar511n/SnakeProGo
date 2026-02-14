@@ -12,6 +12,27 @@ const (
 	ItemFart
 )
 
+func (it ItemType) FileName() string {
+	switch it {
+	case ItemNone:
+		return "none"
+	case ItemSpeed:
+		return "speed"
+	case ItemRevive:
+		return "revive"
+	case ItemShooting:
+		return "shot"
+	case ItemBomb:
+		return "bomb"
+	case ItemBot:
+		return "bot"
+	case ItemFart:
+		return "fart"
+	default:
+		return "unknown"
+	}
+}
+
 func (it ItemType) String() string {
 	switch it {
 	case ItemNone:

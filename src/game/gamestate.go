@@ -189,7 +189,7 @@ func (s *GameSession) Update() {
 }
 
 func NewGameSession(gameoverCallback func(winnerIDs []int)) *GameSession {
-	data, err := os.ReadFile(filepath.Join(BaseSystemPath, AssetsDir, GPConfig.MapPath))
+	data, err := os.ReadFile(filepath.Join(BaseSystemPath, ResDir, GPConfig.MapPath))
 	if err != nil {
 		LogError("Failed to load map file: %v", err)
 		return nil

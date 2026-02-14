@@ -14,6 +14,8 @@ type Game struct {
 	is_running bool
 	menu       *game.MainMenu
 	session    *game.GameSession
+	renderer   game.Renderer
+	resources  *game.ResourceManager
 }
 
 func (g *Game) Update() error {
@@ -26,7 +28,7 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	if g.is_running {
-		game.Render(g.session.State, screen)
+		g.renderer.Render(g.session.State, screen)
 	} else {
 		g.menu.Draw(screen)
 	}
@@ -73,8 +75,13 @@ func main() {
 			ebitengame.menu.AddHistory("Game over! Winners: %v", winnernames)
 		})
 		ebitengame.session.Initialize()
+		ebitengame.renderer = game.NewDefaultRenderer(ebitengame.resources)
+		ebitengame.renderer.InitRender(true, ebitengame.session.State)
 		ebitengame.is_running = true
 	})
+	ebitengame.resources = &game.ResourceManager{}
+	ebitengame.resources.LoadAssets(filepath.Join(game.BaseSystemPath, game.ResDir, game.AssetsDir), "Images", "Sounds", "Icons")
+	ebiten.SetWindowIcon(ebitengame.resources.Icons)
 
 	if err := ebiten.RunGame(ebitengame); err != nil {
 		game.FatalError("Game crashed: %v", err)

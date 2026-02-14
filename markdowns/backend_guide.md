@@ -259,10 +259,10 @@ func (m *MapData) BuildCache()
 **Structs:**
 
 ```go
-type PlayerAction int
+type PlayerActionTurn int
 
 const (
-    ActionNone PlayerAction = iota
+    ActionNone PlayerActionTurn = iota
     ActionUp
     ActionDown
     ActionLeft
@@ -274,7 +274,7 @@ const (
 // InputFrame captures inputs for a specific tick.
 type InputFrame struct {
     Tick         uint64
-    Directions   map[int]PlayerAction // Keyed by player ID
+    Directions   map[int]PlayerActionTurn // Keyed by player ID
     ItemsUsed    map[int]bool         // Keyed by player ID, true indicates item usage
 }
 
