@@ -2,8 +2,8 @@ package game
 
 type Apple struct {
 	*EntityBase
-	Nutrition  int
-	IsConsumed bool
+	Nutrition  int  `msgpack:"-"`
+	IsConsumed bool `msgpack:"-"`
 }
 
 func (a *Apple) Update(state *GameState)  {}

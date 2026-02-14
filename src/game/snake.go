@@ -8,14 +8,14 @@ import (
 // Implements Collidable and Updatable.
 // Update method handles movement, growth, and status effects updates.
 type BaseSnake struct {
-	Body           *CollisionTiles // Head is at index 0 of the Vec2i slice
-	Facing         Vec2i           // Current movement direction
-	NextFacing     Vec2i           // Buffered input direction
-	Fett           int             // "Fett" counter for growth buffer
-	StatusEffects  []StatusEffect  // Active status effects (e.g. dead, invincible, speed boost)
-	ticksSinceMove int             // Counter to track movement timing based on speed
-	Die            func(s *BaseSnake, reason string, state *GameState)
-	Owner          interface{}
+	Body           *CollisionTiles                                     // Head is at index 0 of the Vec2i slice
+	Facing         Vec2i                                               `msgpack:"-"` // Current movement direction
+	NextFacing     Vec2i                                               `msgpack:"-"` // Buffered input direction
+	Fett           int                                                 // "Fett" counter for growth buffer
+	StatusEffects  []StatusEffect                                      // Active status effects (e.g. dead, invincible, speed boost)
+	ticksSinceMove int                                                 // Counter to track movement timing based on speed
+	die            func(s *BaseSnake, reason string, state *GameState) `msgpack:"-"`
+	owner          interface{}
 	markedForDeath string
 }
 
@@ -27,11 +27,11 @@ func NewBaseSnake(spawnpoint Vec2i, direction Vec2i, length int) *BaseSnake {
 		Fett:           length - 1,
 		ticksSinceMove: 0,
 		StatusEffects:  []StatusEffect{},
-		Die: func(s *BaseSnake, reason string, state *GameState) {
+		die: func(s *BaseSnake, reason string, state *GameState) {
 			s.StatusEffects = []StatusEffect{&DeadEffect{}}
 		},
 	}
-	bs.Owner = bs
+	bs.owner = bs
 	return bs
 }
 
@@ -83,7 +83,7 @@ func (s *BaseSnake) Update(state *GameState) {
 		s.UpdateEffects(state)
 	} else {
 		if s.markedForDeath != "" {
-			s.Die(s, s.markedForDeath, state)
+			s.die(s, s.markedForDeath, state)
 			s.markedForDeath = ""
 			return
 		}
@@ -152,20 +152,20 @@ func (s *BaseSnake) ScanLayers() CollisionMask {
 	return LayerSnake | LayerApple | LayerWall | LayerEntity | LayerItem
 }
 func (s *BaseSnake) GetCollider() CollisionObject { return s.Body }
-func (s *BaseSnake) GetOwner() interface{}        { return s }
+func (s *BaseSnake) GetOwner() interface{}        { return s.owner }
 func (s *BaseSnake) CanSelfCollide() bool         { return true }
 
 // PlayerSnake represents a player-controlled snake. Implements InputHandler and embeds BaseSnake.
 type PlayerSnake struct {
 	*BaseSnake
 	ID         int
-	Config     *PlayerConfig // Reference to existing PlayerConfig struct (name, keys, stats)
-	HeldItem   ItemType      // Currently held item (ItemNone if empty)
-	InputQueue []PlayerActionTurn
+	Config     *PlayerConfig      `msgpack:"-"` // Reference to existing PlayerConfig struct (name, keys, stats)
+	HeldItem   ItemType           // Currently held item (ItemNone if empty)
+	InputQueue []PlayerActionTurn `msgpack:"-"`
 }
 
 func NewPlayerSnake(base *BaseSnake, id int, config *PlayerConfig) *PlayerSnake {
-	base.Die = DiePlayer
+	base.die = DiePlayer
 	sn := &PlayerSnake{
 		BaseSnake:  base,
 		ID:         id,
@@ -173,7 +173,7 @@ func NewPlayerSnake(base *BaseSnake, id int, config *PlayerConfig) *PlayerSnake 
 		HeldItem:   ItemNone,
 		InputQueue: make([]PlayerActionTurn, 0, 20),
 	}
-	sn.Owner = sn
+	sn.owner = sn
 	return sn
 }
 
@@ -233,8 +233,8 @@ func (s *PlayerSnake) UseItem(state *GameState) {
 func DiePlayer(si *BaseSnake, reason string, state *GameState) {
 	// TODO: add death to stats
 	// TODO: handle ghost behavior
-	PlaySound("Dead")
-	s, ok := si.Owner.(*PlayerSnake)
+	state.PlaySoundEffect("Dead")
+	s, ok := si.owner.(*PlayerSnake)
 	if !ok {
 		LogWarning("DiePlayer called on BaseSnake with non-PlayerSnake owner")
 	}
@@ -262,11 +262,11 @@ func (s *PlayerSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state 
 			LogInfo("Snake %v killed snake %v by collision at %v", s.ID, o.ID, tile)
 		}
 	case *Apple:
-		PlaySound("Eating")
+		state.PlaySoundEffect("Eating")
 		s.Fett += o.Nutrition
 		o.IsConsumed = true
 	case *Item:
-		PlaySound("Item")
+		state.PlaySoundEffect("Item")
 		s.HeldItem = o.ItemType
 		o.IsConsumed = true
 	default:

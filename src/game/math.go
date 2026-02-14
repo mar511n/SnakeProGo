@@ -14,7 +14,7 @@ var (
 
 // Integer vector math
 type Vec2i struct {
-	X, Y int
+	X, Y int16
 }
 
 func (v Vec2i) Add(other Vec2i) Vec2i {
@@ -26,7 +26,7 @@ func (v Vec2i) Sub(other Vec2i) Vec2i {
 }
 
 func (v Vec2i) Mul(scalar int) Vec2i {
-	return Vec2i{v.X * scalar, v.Y * scalar}
+	return Vec2i{v.X * int16(scalar), v.Y * int16(scalar)}
 }
 
 func (v Vec2i) Equals(other Vec2i) bool {
@@ -101,7 +101,7 @@ func (v Vec2f) String() string {
 }
 
 func (v Vec2f) ToVec2i() Vec2i {
-	return Vec2i{int(v.X), int(v.Y)}
+	return Vec2i{int16(v.X), int16(v.Y)}
 }
 
 var uniqueIDCounter uint64 = 1
@@ -116,7 +116,7 @@ var RandomSource *rand.Rand
 
 func RandomPosition(width, height int) Vec2i {
 	return Vec2i{
-		X: RandomSource.Intn(width),
-		Y: RandomSource.Intn(height),
+		X: int16(RandomSource.Intn(width)),
+		Y: int16(RandomSource.Intn(height)),
 	}
 }

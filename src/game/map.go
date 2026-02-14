@@ -40,7 +40,7 @@ func (m *MapData) BuildCache() {
 				m.Collider.Occupied[x][y] = true
 			}
 			if tile.IsSpawn {
-				m.SpawnPoints = append(m.SpawnPoints, Vec2i{X: x, Y: y})
+				m.SpawnPoints = append(m.SpawnPoints, Vec2i{X: int16(x), Y: int16(y)})
 				m.SpawnDirs = append(m.SpawnDirs, tile.SpawnDir)
 			}
 		}

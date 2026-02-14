@@ -74,7 +74,7 @@ func (r *DefaultRenderer) DrawSnake(screen *ebiten.Image, tiles []Vec2i, bodypar
 	// render tail
 	tail := tiles[len(tiles)-1]
 	tailOrit := tiles[len(tiles)-2].Sub(tail).Orientation()
-	op := r.GetTileDrawOptions(bodyparts[4], tail.X, tail.Y, float64(tailOrit), 1, r.TileSize)
+	op := r.GetTileDrawOptions(bodyparts[4], int(tail.X), int(tail.Y), float64(tailOrit), 1, r.TileSize)
 	screen.DrawImage(bodyparts[4], op)
 	// render body
 	for i := len(tiles) - 2; i > 0; i-- {
@@ -98,13 +98,13 @@ func (r *DefaultRenderer) DrawSnake(screen *ebiten.Image, tiles []Vec2i, bodypar
 			LogWarning("Invalid snake body configuration at tile %v", tile)
 			continue
 		}
-		op := r.GetTileDrawOptions(bodyparts[bodyIdx], tile.X, tile.Y, float64(bodyO), 1, r.TileSize)
+		op := r.GetTileDrawOptions(bodyparts[bodyIdx], int(tile.X), int(tile.Y), float64(bodyO), 1, r.TileSize)
 		screen.DrawImage(bodyparts[bodyIdx], op)
 	}
 	// render head
 	head := tiles[0]
 	headOrit := (head.Sub(tiles[1]).Orientation() + 1) % 4
-	op = r.GetTileDrawOptions(bodyparts[3], head.X, head.Y, float64(headOrit), 1, r.TileSize)
+	op = r.GetTileDrawOptions(bodyparts[3], int(head.X), int(head.Y), float64(headOrit), 1, r.TileSize)
 	screen.DrawImage(bodyparts[3], op)
 }
 
@@ -128,7 +128,7 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 			LogError("Apple image not found in resource manager, cannot render apple")
 			continue
 		}
-		op := r.GetTileDrawOptions(img, apple.Collider.Tiles[0].X, apple.Collider.Tiles[0].Y, 0, 1, r.TileSize)
+		op := r.GetTileDrawOptions(img, int(apple.Collider.Tiles[0].X), int(apple.Collider.Tiles[0].Y), 0, 1, r.TileSize)
 		screen.DrawImage(img, op)
 	}
 
@@ -139,7 +139,7 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 			LogError("Item image for item type %v not found in resource manager, cannot render item", item.ItemType)
 			continue
 		}
-		op := r.GetTileDrawOptions(img, item.Collider.Tiles[0].X, item.Collider.Tiles[0].Y, 0, 1, r.TileSize)
+		op := r.GetTileDrawOptions(img, int(item.Collider.Tiles[0].X), int(item.Collider.Tiles[0].Y), 0, 1, r.TileSize)
 		screen.DrawImage(img, op)
 	}
 

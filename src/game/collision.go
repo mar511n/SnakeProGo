@@ -67,7 +67,7 @@ type CollisionMap struct {
 
 func (c *CollisionMap) Contains(p Vec2i) bool {
 	pr := p.Sub(c.P0)
-	if pr.X < 0 || pr.Y < 0 || pr.X >= c.Width || pr.Y >= c.Height {
+	if pr.X < 0 || pr.Y < 0 || pr.X >= int16(c.Width) || pr.Y >= int16(c.Height) {
 		return c.UseBounds
 	}
 	return c.Occupied[pr.X][pr.Y]

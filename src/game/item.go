@@ -66,7 +66,7 @@ var ItemChances map[ItemType]float64
 type Item struct {
 	*EntityBase
 	ItemType   ItemType
-	IsConsumed bool
+	IsConsumed bool `msgpack:"-"`
 }
 
 func (i *Item) Update(state *GameState)  {}
@@ -116,7 +116,7 @@ func InitializeItems() {
 			LogWarning("Player %d not found while trying to use Speed Item", userID)
 			return false
 		}
-		PlaySound("Speed")
+		state.PlaySoundEffect("Speed")
 		state.Players[userID].StatusEffects = append(state.Players[userID].StatusEffects, &SpeedBoostEffect{
 			Duration:   int(GPConfig.SpeedDuration * float64(GConfig.TPS)),
 			Multiplier: GPConfig.SpeedMultiplier,

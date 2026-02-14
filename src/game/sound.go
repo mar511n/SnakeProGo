@@ -47,13 +47,14 @@ func InitSound(rm *ResourceManager) {
 	LogInfo("Audio context initialized with sample rate %d", GConfig.AudioSampleRate)
 }
 
-func PlaySound(name string) {
+func PlaySound(name string, vol_mul float64) {
 	if SoundResources == nil {
 		LogError("Sound resources not initialized, cannot play win sound")
 		return
 	}
 	if soundData, exists := SoundResources.RandomSound(name); exists {
 		player := soundData.GetPlayer()
+		player.SetVolume(GConfig.MasterVolume * vol_mul)
 		if player != nil {
 			player.Play()
 		}

@@ -15,11 +15,11 @@ const (
 // EntityBase represents any dynamic object in the world. Implements the Entity interface.
 // Entities (Apples, Items, Bullets, Bots) embed this.
 type EntityBase struct {
-	ID       uint64
+	ID       uint64 `msgpack:"-"`
 	Type     EntityType
 	Collider *CollisionTiles // The entity's physical presence
-	OwnerID  int             // Player who spawned it (or -1 for world)
-	LifeTime int             // Ticks remaining (-1 for infinite)
+	OwnerID  int             `msgpack:"-"` // Player who spawned it (or -1 for world)
+	LifeTime int             `msgpack:"-"` // Ticks remaining (-1 for infinite)
 }
 
 func (e *EntityBase) Update(state *GameState) {

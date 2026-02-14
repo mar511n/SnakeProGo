@@ -7,13 +7,6 @@ type Renderer interface {
 	Render(state *GameState, screen *ebiten.Image)
 }
 
-type Serializable interface {
-	EncodeInit() ([]byte, error)
-	DecodeInit([]byte) error
-	Encode() ([]byte, error)
-	Decode([]byte) error
-}
-
 type InputHandler interface {
 	HandleInput(input string, state *GameState)
 }

@@ -49,20 +49,20 @@ func (r *BasicRenderer) Render(state *GameState, screen *ebiten.Image) {
 	for i, snake := range state.Players {
 		col := r.snakeColors[i%len(r.snakeColors)]
 		for _, pos := range snake.Body.Tiles {
-			xp, yp := r.toScreen(pos.X, pos.Y)
+			xp, yp := r.toScreen(int(pos.X), int(pos.Y))
 			vector.FillRect(screen, float32(xp), float32(yp), float32(r.tileSize), float32(r.tileSize), col, r.antialias)
 		}
 	}
 	// Render apples
 	for _, apple := range state.Apples {
 		col := color.RGBA{R: 255, G: 0, B: 0, A: 255}
-		xp, yp := r.toScreen(apple.Collider.Tiles[0].X, apple.Collider.Tiles[0].Y)
+		xp, yp := r.toScreen(int(apple.Collider.Tiles[0].X), int(apple.Collider.Tiles[0].Y))
 		vector.FillCircle(screen, float32(xp)+float32(r.tileSize)/2, float32(yp)+float32(r.tileSize)/2, float32(r.tileSize)/2, col, r.antialias)
 	}
 	// Render items
 	for _, item := range state.Items {
 		col := color.RGBA{R: 0, G: 255, B: 0, A: 255}
-		xp, yp := r.toScreen(item.Collider.Tiles[0].X, item.Collider.Tiles[0].Y)
+		xp, yp := r.toScreen(int(item.Collider.Tiles[0].X), int(item.Collider.Tiles[0].Y))
 		vector.StrokeCircle(screen, float32(xp)+float32(r.tileSize)/2, float32(yp)+float32(r.tileSize)/2, float32(r.tileSize)/2, float32(r.tileSize)/6, col, r.antialias)
 	}
 }

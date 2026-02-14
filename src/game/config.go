@@ -24,6 +24,7 @@ type GlobalConfig struct {
 	DisplayFPS      bool    `toml:"display_fps"`       // whether to display FPS counter
 	DisplayTPS      bool    `toml:"display_tps"`       // whether to display TPS counter
 	AudioSampleRate int     `toml:"audio_sample_rate"` // sample rate for audio playback
+	MaxHistorySize  int     `toml:"max_history_size"`  // maximum total size in bytes for stored game states in history
 }
 
 type GameplayConfig struct {
@@ -100,12 +101,12 @@ func loadGlobalConfig() {
 		LogWarning("Global config not found, using defaults.")
 		GConfig = GlobalConfig{
 			ResDir:          ResDir,
-			ScreenWidth:     1920,
-			ScreenHeight:    1080,
-			Fullscreen:      true,
-			MasterVolume:    100,
-			MusicVolume:     80,
-			SfxVolume:       100,
+			ScreenWidth:     1280,
+			ScreenHeight:    720,
+			Fullscreen:      false,
+			MasterVolume:    1.0,
+			MusicVolume:     0.8,
+			SfxVolume:       1.0,
 			DebugLevel:      2,
 			TPS:             60,
 			Vsync:           false,
@@ -113,6 +114,7 @@ func loadGlobalConfig() {
 			DisplayFPS:      true,
 			DisplayTPS:      true,
 			AudioSampleRate: 48000,
+			MaxHistorySize:  1000 * 1024 * 1024, // 1 GB
 		}
 
 		saveConfig(path, GConfig)
