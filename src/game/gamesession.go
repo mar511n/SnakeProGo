@@ -43,9 +43,14 @@ func (s *GameSession) Update() {
 		}
 	}
 	// update entities
+	newEntities := []Entity{}
 	for _, entity := range s.State.Entities {
 		entity.Update(s.State, s.History)
+		if !entity.IsExpired() {
+			newEntities = append(newEntities, entity)
+		}
 	}
+	s.State.Entities = newEntities
 
 	// check collisions
 	collidables := make([]Collidable, 1+len(s.State.Players)+len(s.State.Apples)+len(s.State.Items)+len(s.State.Entities))

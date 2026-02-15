@@ -157,6 +157,21 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 		screen.DrawImage(img, op)
 	}
 
+	// Render entities
+	for _, entity := range state.Entities {
+		switch e := entity.(type) {
+		case *BulletEntity:
+			bullet_img := r.Rm.Images[ItemCategoryName][ItemShotBulletName]
+			trail_img := r.Rm.Images[ItemCategoryName][ItemShotTrailName]
+			for _, pos := range e.Trail[:len(e.Trail)-1] {
+				op := r.GetTileDrawOptions(trail_img, int(pos.X), int(pos.Y), float64((e.Dir.Orientation()+1)%4), 1, r.TileSize)
+				screen.DrawImage(trail_img, op)
+			}
+			op := r.GetTileDrawOptions(bullet_img, int(e.Collider.Tiles[0].X), int(e.Collider.Tiles[0].Y), float64((e.Dir.Orientation()+1)%4), 1, r.TileSize)
+			screen.DrawImage(bullet_img, op)
+		}
+	}
+
 	// Render snakes
 	// sort player IDs to ensure consistent rendering order
 	IDs := make([]int, 0, len(state.Players))

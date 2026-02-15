@@ -22,6 +22,7 @@ type Updatable interface {
 type Entity interface {
 	Collidable
 	Updatable
+	IsExpired() bool
 }
 
 type Collidable interface {

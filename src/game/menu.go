@@ -88,7 +88,7 @@ func (m *MainMenu) Draw(screen *ebiten.Image) {
 	var maxLines = GConfig.ScreenHeight / 16
 
 	start := 0
-	if len(m.history) > maxLines {
+	if len(m.history) > maxLines-11 {
 		start = len(m.history) - maxLines + 10 + 1
 	}
 

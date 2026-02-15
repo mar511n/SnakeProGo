@@ -31,14 +31,13 @@ var (
 	SnakeTileBodypartNames = []string{"SnkB", "SnkL", "SnkR", "SnkH", "SnkT"}
 
 	// category name for items
-	ItemCategoryName = "Items"
+	ItemCategoryName   = "Items"
+	ItemShotBulletName = "shot_bullet"
+	ItemShotTrailName  = "shot_stripes"
 
 	// category name for Food
 	FoodCategoryName = "Food"
-
-	AppleFileName = "Apple"
-
-	SpeedItemFileName = "speed"
+	AppleFileName    = "Apple"
 )
 
 // handles resource loading and caching. Loads all assets at the beginning of the game and keeps them in memory.

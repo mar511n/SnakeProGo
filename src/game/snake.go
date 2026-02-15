@@ -19,6 +19,14 @@ type BaseSnake struct {
 	markedForDeath string
 }
 
+func (s *BaseSnake) MarkForDeath(reason string) bool {
+	if s.markedForDeath == "" {
+		s.markedForDeath = reason
+		return true
+	}
+	return false
+}
+
 func (s *BaseSnake) OverWriteWith(other *BaseSnake) {
 	if other.Body != nil {
 		s.Body = other.Body
@@ -117,7 +125,7 @@ func (s *BaseSnake) CheckSelfCollision(other Collidable, state *GameState) (cons
 		head_tile := s.Body.Tiles[0]
 		for _, body_tile := range s.Body.Tiles[1:] {
 			if head_tile.Equals(body_tile) {
-				s.markedForDeath = "self collision"
+				s.MarkForDeath("self collision")
 				return true
 			}
 		}
@@ -127,7 +135,7 @@ func (s *BaseSnake) CheckSelfCollision(other Collidable, state *GameState) (cons
 }
 func (s *BaseSnake) CheckWallCollision(other Collidable, state *GameState) (consumed bool) {
 	if _, ok := other.GetCollider().(*CollisionMap); ok {
-		s.markedForDeath = "wall collision"
+		s.MarkForDeath("wall collision")
 		return true
 	}
 	return false
@@ -140,7 +148,7 @@ func (s *BaseSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state *G
 		// handle snake-snake collision
 		if tile.Equals(o.Body.Tiles[0]) {
 			// own head collided with other snake (or both heads collided)
-			s.markedForDeath = "snake collision"
+			s.MarkForDeath("snake collision")
 		} else {
 			// other snake's head collided with own body - add a kill to own score
 			// LogInfo("Snake %v killed snake %v by collision at %v", s.GetOwner(), o.GetOwner(), tile)
@@ -289,7 +297,7 @@ func (s *PlayerSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state 
 		// handle snake-snake collision
 		if tile.Equals(s.Body.Tiles[0]) {
 			// own head collided with other snake (or both heads collided)
-			s.markedForDeath = fmt.Sprintf("snake collision with %d", o.ID)
+			s.MarkForDeath(fmt.Sprintf("snake collision with %d", o.ID))
 		} else if tile.Equals(o.Body.Tiles[0]) {
 			// other snake's head collided with own body - add a kill to own score
 			LogInfo("Snake %v killed snake %v by collision at %v", s.ID, o.ID, tile)
@@ -302,6 +310,24 @@ func (s *PlayerSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state 
 		state.PlaySoundEffect("Item")
 		s.HeldItem = o.ItemType
 		o.IsConsumed = true
+	case *BulletEntity:
+		if tile.Equals(s.Body.Tiles[0]) {
+			s.MarkForDeath(fmt.Sprintf("shot by player %d", o.OwnerID))
+		} else {
+			ti := -1
+			for i, t := range s.Body.Tiles {
+				if tile.Equals(t) {
+					ti = i
+					break
+				}
+			}
+			if ti != -1 {
+				s.Body.Tiles = s.Body.Tiles[:ti]
+			}
+			if len(s.Body.Tiles) < GPConfig.SnakeSurvivalLength {
+				s.MarkForDeath(fmt.Sprintf("shot by player %d", o.OwnerID))
+			}
+		}
 	default:
 		LogInfo("Unhandled collision at %v with object of type %v", tile, other_owner)
 	}

@@ -109,6 +109,7 @@ func InitializeItems() {
 	ItemRegistry = make(map[ItemType]ItemHandler)
 	ItemChances[ItemSpeed] = GPConfig.ItemSpeedChance
 	ItemChances[ItemRevive] = GPConfig.ItemReviveChance
+	ItemChances[ItemShooting] = GPConfig.ItemShootingChance
 	//TODO: This is where we would register all item behaviors.
 
 	ItemRegistry[ItemSpeed] = func(userID int, state *GameState, hist *HistoryData) bool {
@@ -148,6 +149,22 @@ func InitializeItems() {
 			player.StatusEffects = []*StatusEffect{NewRespawningStatusEffect(GPConfig.ReviveDuration)}
 			consumed = true
 		}
+		return
+	}
+	ItemRegistry[ItemShooting] = func(userID int, state *GameState, hist *HistoryData) (consumed bool) {
+		consumed = false
+		pl, ok := state.Players[userID]
+		if !ok {
+			LogWarning("Player %d not found while trying to use Shooting Item", userID)
+			return
+		}
+		state.PlaySoundEffect("Shooting")
+		state.Entities = append(state.Entities, NewBullet(
+			pl.ID,
+			pl.Body.Tiles[0].Add(pl.Facing),
+			pl.Facing,
+		))
+		consumed = true
 		return
 	}
 }

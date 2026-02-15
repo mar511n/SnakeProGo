@@ -171,7 +171,7 @@ func loadGameplayConfig() {
 			ReviveDuration:              1.5,
 			ReviveInvincibilityDuration: 1.0,
 			ItemShootingChance:          1.0,
-			BulletSpeed:                 5.0,
+			BulletSpeed:                 15.0,
 			BulletRange:                 10,
 			ItemBotChance:               1.0,
 			BotSpeed:                    1.3,

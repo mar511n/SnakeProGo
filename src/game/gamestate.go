@@ -55,18 +55,26 @@ func (s *GameState) MarshalMsgpack() ([]byte, error) {
 	for _, id := range ids {
 		pls = append(pls, s.Players[id])
 	}
+	bullets := make([]*BulletEntity, 0)
+	for _, entity := range s.Entities {
+		if b, ok := entity.(*BulletEntity); ok {
+			bullets = append(bullets, b)
+		}
+	}
 	ag := &struct {
 		PlayersIDs []int
 		Players    []*PlayerSnake
 		Apples     []*Apple
 		Items      []*Item
 		Events     []*GameEvent
+		Bullets    []*BulletEntity
 	}{
 		PlayersIDs: ids,
 		Players:    pls,
 		Apples:     s.Apples,
 		Items:      s.Items,
 		Events:     s.Events,
+		Bullets:    bullets,
 	}
 	b, err := msgpack.Marshal(ag)
 	if err != nil {
@@ -82,6 +90,7 @@ func (s *GameState) UnmarshalMsgpack(data []byte) error {
 		Apples     []*Apple
 		Items      []*Item
 		Events     []*GameEvent
+		Bullets    []*BulletEntity
 	}{}
 	err := msgpack.Unmarshal(data, aux)
 	if err != nil {
@@ -106,6 +115,20 @@ func (s *GameState) UnmarshalMsgpack(data []byte) error {
 	if aux.Events != nil {
 		s.Events = aux.Events
 	}
+	newEntities := make([]Entity, 0)
+	if aux.Bullets != nil {
+		for _, b := range aux.Bullets {
+			newEntities = append(newEntities, b)
+		}
+	} else {
+		for _, entity := range s.Entities {
+			if _, ok := entity.(*BulletEntity); !ok {
+				newEntities = append(newEntities, entity)
+			}
+		}
+	}
+
+	s.Entities = newEntities
 	return nil
 }
 

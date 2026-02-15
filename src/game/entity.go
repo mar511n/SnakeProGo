@@ -33,3 +33,4 @@ func (e *EntityBase) ScanLayers() CollisionMask                                 
 func (e *EntityBase) GetCollider() CollisionObject                               { return e.Collider }
 func (e *EntityBase) GetOwner() interface{}                                      { return e }
 func (e *EntityBase) CanSelfCollide() bool                                       { return false }
+func (e *EntityBase) IsExpired() bool                                            { return e.LifeTime <= 0 }
