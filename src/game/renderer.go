@@ -64,47 +64,61 @@ func (r *DefaultRenderer) GetTileDrawOptions(img *ebiten.Image, tx, ty int, orit
 	return op
 }
 
-func (r *DefaultRenderer) DrawSnake(screen *ebiten.Image, tiles []Vec2i, bodyparts []*ebiten.Image) {
+func (r *DefaultRenderer) DrawSnake(screen *ebiten.Image, tiles []Vec2i, facing Vec2i, bodyparts []*ebiten.Image, isDead bool) {
 	// assumes bodyparts to be: snake body (right->left, right->down, right->up), snake head (->up), snake tail (left->)
 	// tiles[0] is the head, tiles[len(tiles)-1] is the tail
-	if len(tiles) < 2 {
-		LogWarning("Snake has less than 2 tiles, cannot render body")
+	if len(tiles) == 0 {
+		LogWarning("Attempted to render snake with no body tiles, skipping render")
 		return
 	}
-	// render tail
-	tail := tiles[len(tiles)-1]
-	tailOrit := tiles[len(tiles)-2].Sub(tail).Orientation()
-	op := r.GetTileDrawOptions(bodyparts[4], int(tail.X), int(tail.Y), float64(tailOrit), 1, r.TileSize)
-	screen.DrawImage(bodyparts[4], op)
-	// render body
-	for i := len(tiles) - 2; i > 0; i-- {
-		tile := tiles[i]
-		prev := tiles[i+1]
-		next := tiles[i-1]
-		prevO := tile.Sub(prev).Orientation()
-		nextO := next.Sub(tile).Orientation()
-		bodyO := 0
-		bodyIdx := 0
-		if prevO == nextO {
-			bodyO = prevO - 2
-			bodyIdx = 0
-		} else if (prevO+1)%4 == nextO {
-			bodyO = prevO - 2
-			bodyIdx = 2
-		} else if (prevO+3)%4 == nextO {
-			bodyO = prevO - 2
-			bodyIdx = 1
-		} else {
-			LogWarning("Invalid snake body configuration at tile %v", tile)
-			continue
+	cs := &ebiten.ColorScale{}
+	if isDead {
+		cs.ScaleAlpha(0.5)
+	}
+	if len(tiles) >= 2 {
+		// render tail
+		tail := tiles[len(tiles)-1]
+		tailOrit := tiles[len(tiles)-2].Sub(tail).Orientation()
+		op := r.GetTileDrawOptions(bodyparts[4], int(tail.X), int(tail.Y), float64(tailOrit), 1, r.TileSize)
+		op.ColorScale = *cs
+		screen.DrawImage(bodyparts[4], op)
+	}
+	if len(tiles) > 2 {
+		// render body
+		for i := len(tiles) - 2; i > 0; i-- {
+			tile := tiles[i]
+			prev := tiles[i+1]
+			next := tiles[i-1]
+			prevO := tile.Sub(prev).Orientation()
+			nextO := next.Sub(tile).Orientation()
+			bodyO := 0
+			bodyIdx := 0
+			if prevO == nextO {
+				bodyO = prevO - 2
+				bodyIdx = 0
+			} else if (prevO+1)%4 == nextO {
+				bodyO = prevO - 2
+				bodyIdx = 2
+			} else if (prevO+3)%4 == nextO {
+				bodyO = prevO - 2
+				bodyIdx = 1
+			} else {
+				LogWarning("Invalid snake body configuration at tile %v", tile)
+				continue
+			}
+			op := r.GetTileDrawOptions(bodyparts[bodyIdx], int(tile.X), int(tile.Y), float64(bodyO), 1, r.TileSize)
+			op.ColorScale = *cs
+			screen.DrawImage(bodyparts[bodyIdx], op)
 		}
-		op := r.GetTileDrawOptions(bodyparts[bodyIdx], int(tile.X), int(tile.Y), float64(bodyO), 1, r.TileSize)
-		screen.DrawImage(bodyparts[bodyIdx], op)
 	}
 	// render head
 	head := tiles[0]
-	headOrit := (head.Sub(tiles[1]).Orientation() + 1) % 4
-	op = r.GetTileDrawOptions(bodyparts[3], int(head.X), int(head.Y), float64(headOrit), 1, r.TileSize)
+	headOrit := (facing.Orientation() + 1) % 4
+	if len(tiles) > 1 {
+		headOrit = (head.Sub(tiles[1]).Orientation() + 1) % 4
+	}
+	op := r.GetTileDrawOptions(bodyparts[3], int(head.X), int(head.Y), float64(headOrit), 1, r.TileSize)
+	op.ColorScale = *cs
 	screen.DrawImage(bodyparts[3], op)
 }
 
@@ -152,9 +166,6 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 	slices.Sort(IDs)
 	for idx, id := range IDs {
 		snake := state.Players[id]
-		if len(snake.Body.Tiles) < 2 {
-			continue
-		}
 		bodyparts := make([]*ebiten.Image, 5)
 		drawSnake := true
 		for i := 0; i < 5; i++ {
@@ -167,7 +178,7 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 		if !drawSnake {
 			continue
 		}
-		r.DrawSnake(screen, snake.Body.Tiles, bodyparts)
+		r.DrawSnake(screen, snake.Body.Tiles, snake.Facing, bodyparts, snake.IsDead())
 	}
 
 	// Render UI

@@ -56,7 +56,7 @@ func (it ItemType) String() string {
 
 // ItemHandler defines the effect of using an item.
 // It returns true if the item was successfully used (and should be consumed).
-type ItemHandler func(userID int, state *GameState) bool
+type ItemHandler func(userID int, state *GameState, hist *HistoryData) bool
 
 // Global registry of item behaviors, populated at startup.
 var ItemRegistry = map[ItemType]ItemHandler{}
@@ -69,9 +69,9 @@ type Item struct {
 	IsConsumed bool `msgpack:"-"`
 }
 
-func (i *Item) Update(state *GameState)  {}
-func (i *Item) OwnLayers() CollisionMask { return LayerItem }
-func (i *Item) GetOwner() interface{}    { return i }
+func (i *Item) Update(state *GameState, hist *HistoryData) {}
+func (i *Item) OwnLayers() CollisionMask                   { return LayerItem }
+func (i *Item) GetOwner() interface{}                      { return i }
 
 func NewItem(id uint64, pos Vec2i, itemType ItemType) *Item {
 	return &Item{
@@ -108,19 +108,46 @@ func InitializeItems() {
 	ItemChances = make(map[ItemType]float64)
 	ItemRegistry = make(map[ItemType]ItemHandler)
 	ItemChances[ItemSpeed] = GPConfig.ItemSpeedChance
+	ItemChances[ItemRevive] = GPConfig.ItemReviveChance
 	//TODO: This is where we would register all item behaviors.
 
-	ItemRegistry[ItemSpeed] = func(userID int, state *GameState) bool {
+	ItemRegistry[ItemSpeed] = func(userID int, state *GameState, hist *HistoryData) bool {
 		_, ok := state.Players[userID]
 		if !ok {
 			LogWarning("Player %d not found while trying to use Speed Item", userID)
 			return false
 		}
 		state.PlaySoundEffect("Speed")
-		state.Players[userID].StatusEffects = append(state.Players[userID].StatusEffects, &SpeedBoostEffect{
-			Duration:   int(GPConfig.SpeedDuration * float64(GConfig.TPS)),
-			Multiplier: GPConfig.SpeedMultiplier,
-		})
+		state.Players[userID].StatusEffects = append(state.Players[userID].StatusEffects, NewSpeedBoostStatusEffect(GPConfig.SpeedDuration))
 		return true
+	}
+	ItemRegistry[ItemRevive] = func(userID int, state *GameState, hist *HistoryData) (consumed bool) {
+		consumed = false
+		player, ok := state.Players[userID]
+		if !ok {
+			LogWarning("Player %d not found while trying to use Revive Item", userID)
+			return
+		}
+		state.PlaySoundEffect("Revive")
+		if GPConfig.ReviveIsRewind {
+			tick := state.Tick
+			hist.ReconstructState(int(state.Tick)-int(GPConfig.RewindTime*float64(GConfig.TPS)), state)
+			state.Tick = tick
+			state.Events = append(state.Events, NewSoundEvent("Revive"))
+			consumed = true
+		} else {
+			pos := RandomPosition(state.Map.Collider.Width, state.Map.Collider.Height).Add(state.Map.Collider.P0)
+			for i := 0; i < 100; i++ {
+				if !state.CheckPointCollision(pos, NewCollisionMaskAllLayers()) {
+					break
+				}
+				pos = RandomPosition(state.Map.Collider.Width, state.Map.Collider.Height).Add(state.Map.Collider.P0)
+			}
+			player.Body.Tiles = []Vec2i{pos}
+			player.Fett = GPConfig.SnakeSurvivalLength - 1
+			player.StatusEffects = []*StatusEffect{NewRespawningStatusEffect(GPConfig.ReviveDuration)}
+			consumed = true
+		}
+		return
 	}
 }

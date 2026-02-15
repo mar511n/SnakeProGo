@@ -10,25 +10,46 @@ import (
 	"SnakeProGo/game"
 )
 
+type GameMode int
+
+const (
+	ModeMenu GameMode = iota
+	ModePlaying
+	ModeReplay
+)
+
 type Game struct {
-	is_running bool
-	menu       *game.MainMenu
-	session    *game.GameSession
-	renderer   game.Renderer
-	resources  *game.ResourceManager
+	mode      GameMode
+	menu      *game.MainMenu
+	session   *game.GameSession
+	replay    *game.ReplaySession
+	renderer  game.Renderer
+	resources *game.ResourceManager
 }
 
 func (g *Game) Update() error {
-	if g.is_running {
+	if g.mode == ModePlaying {
 		g.session.Update()
 		return nil
+	} else if g.mode == ModeReplay {
+		if g.replay.IsFinished() {
+			g.mode = ModeMenu
+			g.menu.AddHistory("Replay finished.")
+			g.replay = game.NewReplaySession(g.replay.History)
+		} else {
+			g.replay.Update()
+		}
+		return nil
+	} else {
+		return g.menu.Update()
 	}
-	return g.menu.Update()
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	if g.is_running {
+	if g.mode == ModePlaying {
 		g.renderer.Render(g.session.State, screen)
+	} else if g.mode == ModeReplay {
+		g.renderer.Render(g.replay.State, screen)
 	} else {
 		g.menu.Draw(screen)
 	}
@@ -60,10 +81,10 @@ func main() {
 	game.LogInfo("Using base path: %s", game.BaseSystemPath)
 
 	game.LoadConfigs()
-	ebitengame := &Game{is_running: false}
+	ebitengame := &Game{mode: ModeMenu}
 	ebitengame.menu = game.NewMainMenu(func() {
-		ebitengame.session = game.NewGameSession(func(winnerIDs []int) {
-			ebitengame.is_running = false
+		ebitengame.session = game.NewGameSession(func(winnerIDs []int, hist *game.HistoryData) {
+			ebitengame.mode = ModeMenu
 			winnernames := make([]string, len(winnerIDs))
 			for i, id := range winnerIDs {
 				if player, ok := ebitengame.session.State.Players[id]; ok {
@@ -73,11 +94,15 @@ func main() {
 				}
 			}
 			ebitengame.menu.AddHistory("Game over! Winners: %v", winnernames)
+			ebitengame.replay = game.NewReplaySession(hist)
+			ebitengame.menu.OnReplay = func() {
+				ebitengame.mode = ModeReplay
+			}
 		})
 		ebitengame.session.Initialize()
 		ebitengame.renderer = game.NewDefaultRenderer(ebitengame.resources)
 		ebitengame.renderer.InitRender(true, ebitengame.session.State)
-		ebitengame.is_running = true
+		ebitengame.mode = ModePlaying
 	})
 	ebitengame.resources = &game.ResourceManager{}
 	ebitengame.resources.LoadAssets(filepath.Join(game.BaseSystemPath, game.ResDir, game.AssetsDir), "Images", "Sounds", "Icons")

@@ -6,9 +6,9 @@ type Apple struct {
 	IsConsumed bool `msgpack:"-"`
 }
 
-func (a *Apple) Update(state *GameState)  {}
-func (a *Apple) OwnLayers() CollisionMask { return LayerApple }
-func (a *Apple) GetOwner() interface{}    { return a }
+func (a *Apple) Update(state *GameState, hist *HistoryData) {}
+func (a *Apple) OwnLayers() CollisionMask                   { return LayerApple }
+func (a *Apple) GetOwner() interface{}                      { return a }
 
 func NewApple(id uint64, pos Vec2i) *Apple {
 	return &Apple{

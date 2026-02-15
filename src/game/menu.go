@@ -17,6 +17,7 @@ type MainMenu struct {
 	cursorBlink int
 	players     []string
 	OnStartGame func()
+	OnReplay    func()
 }
 
 func NewMainMenu(startGameCallback func()) *MainMenu {
@@ -77,6 +78,7 @@ func (m *MainMenu) Draw(screen *ebiten.Image) {
 		"  addplayer (apl) <name>\n" +
 		"  removeplayer (rpl) <name>\n" +
 		"  listplayers (lpl)\n" +
+		"  replay (r)\n" +
 		"  showconfig (sc) [global/game/username]\n" +
 		"  startgame (start)\n" +
 		"  quit (q)\n" +
@@ -87,7 +89,7 @@ func (m *MainMenu) Draw(screen *ebiten.Image) {
 
 	start := 0
 	if len(m.history) > maxLines {
-		start = len(m.history) - maxLines + 8 + 1
+		start = len(m.history) - maxLines + 10 + 1
 	}
 
 	displayText := header + strings.Join(m.history[start:], "\n")
@@ -110,6 +112,11 @@ func (m *MainMenu) processCommand(cmd string) {
 	args := parts[1:]
 
 	switch command {
+	case "replay", "r":
+		m.history = append(m.history, "Replaying game...")
+		if m.OnReplay != nil {
+			m.OnReplay()
+		}
 	case "addplayer", "apl":
 		if len(args) < 1 {
 			m.history = append(m.history, "Usage: addplayer <name>")

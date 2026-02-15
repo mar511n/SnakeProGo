@@ -1,23 +1,17 @@
 package game
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
-
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 type GameSession struct {
 	State             *GameState
 	RegisteredPlayers map[int]*PlayerConfig // Key: ID, Value: Reference to PlayerConfig
 	//Input             *InputFrame           // Current frame inputs
-	WindConditions []CheckWinCondition   // Conditions to check for victory
-	OnGameOver     func(winnerIDs []int) // Callback for game over, with winner IDs
-	History        [][]byte              // List of serialized GameStates for replay
-	HistoryTicks   []uint64              // Corresponding ticks for each entry in History
-	HistorySize    int                   // Number of bytes currently stored in History (for memory management)
-	Encoder        *msgpack.Encoder
+	WindConditions []CheckWinCondition                      // Conditions to check for victory
+	OnGameOver     func(winnerIDs []int, hist *HistoryData) // Callback for game over, with winner IDs
+	History        *HistoryData
 	inputprocessor InputProcessor
 }
 
@@ -31,11 +25,7 @@ func (s *GameSession) Initialize() {
 	for i := 0; i < GPConfig.ItemCount; i++ {
 		s.State.Items[i] = s.State.SpawnItem()
 	}
-	s.Encoder = msgpack.GetEncoder()
-	s.Encoder.SetOmitEmpty(true)
-	s.Encoder.UseCompactInts(true)
-	s.Encoder.UseCompactFloats(true)
-	s.Encoder.UseArrayEncodedStructs(true)
+	s.History.Init(s.State)
 }
 func (s *GameSession) Update() {
 	s.State.Tick++
@@ -44,18 +34,19 @@ func (s *GameSession) Update() {
 	// update players
 	for id, player := range s.State.Players {
 		player.HandleInput(input.Directions[id], s.State)
-		player.Update(s.State)
+		player.Update(s.State, s.History)
 	}
 	// use items
 	for id, player := range s.State.Players {
 		if input.ItemsUsed[id] && player.HeldItem != ItemNone {
-			player.UseItem(s.State)
+			player.UseItem(s.State, s.History)
 		}
 	}
 	// update entities
 	for _, entity := range s.State.Entities {
-		entity.Update(s.State)
+		entity.Update(s.State, s.History)
 	}
+
 	// check collisions
 	collidables := make([]Collidable, 1+len(s.State.Players)+len(s.State.Apples)+len(s.State.Items)+len(s.State.Entities))
 	collidables[0] = s.State.Map
@@ -97,34 +88,8 @@ func (s *GameSession) Update() {
 		}
 	}
 
-	//b, err := msgpack.Marshal(s.State)
-	var buf bytes.Buffer
-	s.Encoder.Reset(&buf)
-	err := s.Encoder.Encode(s.State)
-	b := buf.Bytes()
-	msgpack.PutEncoder(s.Encoder)
-
-	if err != nil {
-		LogError("Failed to serialize game state for history: %v", err)
-	} else {
-		// check if b is different from the last entry in s.History to avoid storing duplicate states
-		if len(s.History) == 0 || !bytes.Equal(b, s.History[len(s.History)-1]) {
-			//LogInfo("Storing game state for history (tick %d, size %d)", s.State.Tick, len(b))
-			s.History = append(s.History, b)
-			s.HistoryTicks = append(s.HistoryTicks, s.State.Tick)
-			s.HistorySize += len(b)
-			// if history size exceeds max, remove half of the oldest entries
-			if s.HistorySize > GConfig.MaxHistorySize {
-				removeCount := len(s.History) / 2
-				for i := 0; i < removeCount; i++ {
-					s.HistorySize -= len(s.History[i])
-				}
-				s.History = s.History[removeCount:]
-				s.HistoryTicks = s.HistoryTicks[removeCount:]
-				LogInfo("History size exceeded max, removed %d oldest entries, new size %d", removeCount, s.HistorySize)
-			}
-		}
-	}
+	s.History.AddEntry(s.State)
+	s.State.Events = []*GameEvent{}
 
 	// check win conditions
 	for _, condition := range s.WindConditions {
@@ -135,14 +100,14 @@ func (s *GameSession) Update() {
 			}
 			LogInfo("Game over! Winners: %v", winnerIDs)
 			if s.OnGameOver != nil {
-				s.OnGameOver(winnerIDs)
+				s.OnGameOver(winnerIDs, s.History)
 			}
 			return
 		}
 	}
 }
 
-func NewGameSession(gameoverCallback func(winnerIDs []int)) *GameSession {
+func NewGameSession(gameoverCallback func(winnerIDs []int, hist *HistoryData)) *GameSession {
 	data, err := os.ReadFile(filepath.Join(BaseSystemPath, ResDir, GPConfig.MapPath))
 	if err != nil {
 		LogError("Failed to load map file: %v", err)
@@ -183,7 +148,7 @@ func NewGameSession(gameoverCallback func(winnerIDs []int)) *GameSession {
 		RegisteredPlayers: pconfigs,
 		WindConditions:    []CheckWinCondition{CheckLastOneStanding},
 		OnGameOver:        gameoverCallback,
-		History:           [][]byte{},
+		History:           &HistoryData{},
 		inputprocessor:    DefaultInputProcessor,
 	}
 	session.Initialize()

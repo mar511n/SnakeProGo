@@ -22,7 +22,7 @@ type EntityBase struct {
 	LifeTime int             `msgpack:"-"` // Ticks remaining (-1 for infinite)
 }
 
-func (e *EntityBase) Update(state *GameState) {
+func (e *EntityBase) Update(state *GameState, hist *HistoryData) {
 	if e.LifeTime > 0 {
 		e.LifeTime--
 	}

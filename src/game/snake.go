@@ -8,15 +8,27 @@ import (
 // Implements Collidable and Updatable.
 // Update method handles movement, growth, and status effects updates.
 type BaseSnake struct {
-	Body           *CollisionTiles                                     // Head is at index 0 of the Vec2i slice
-	Facing         Vec2i                                               `msgpack:"-"` // Current movement direction
-	NextFacing     Vec2i                                               `msgpack:"-"` // Buffered input direction
-	Fett           int                                                 // "Fett" counter for growth buffer
-	StatusEffects  []StatusEffect                                      // Active status effects (e.g. dead, invincible, speed boost)
-	ticksSinceMove int                                                 // Counter to track movement timing based on speed
-	die            func(s *BaseSnake, reason string, state *GameState) `msgpack:"-"`
+	Body           *CollisionTiles // Head is at index 0 of the Vec2i slice
+	Facing         Vec2i           // Current movement direction
+	NextFacing     Vec2i           `msgpack:"-"` // Buffered input direction
+	Fett           int             `msgpack:"-"` // "Fett" counter for growth buffer
+	StatusEffects  []*StatusEffect // Active status effects (e.g. dead, invincible, speed boost)
+	ticksSinceMove int             // Counter to track movement timing based on speed
+	die            func(s *BaseSnake, reason string, state *GameState, hist *HistoryData)
 	owner          interface{}
 	markedForDeath string
+}
+
+func (s *BaseSnake) OverWriteWith(other *BaseSnake) {
+	if other.Body != nil {
+		s.Body = other.Body
+	}
+	s.Facing = other.Facing
+	s.NextFacing = other.Facing
+	s.Fett = other.Fett
+	if other.StatusEffects != nil {
+		s.StatusEffects = other.StatusEffects
+	}
 }
 
 func NewBaseSnake(spawnpoint Vec2i, direction Vec2i, length int) *BaseSnake {
@@ -26,26 +38,24 @@ func NewBaseSnake(spawnpoint Vec2i, direction Vec2i, length int) *BaseSnake {
 		NextFacing:     direction,
 		Fett:           length - 1,
 		ticksSinceMove: 0,
-		StatusEffects:  []StatusEffect{},
-		die: func(s *BaseSnake, reason string, state *GameState) {
-			s.StatusEffects = []StatusEffect{&DeadEffect{}}
+		StatusEffects:  []*StatusEffect{},
+		die: func(s *BaseSnake, reason string, state *GameState, hist *HistoryData) {
+			s.StatusEffects = []*StatusEffect{NewDeadStatusEffect()}
 		},
 	}
 	bs.owner = bs
 	return bs
 }
 
-func (s *BaseSnake) UpdateEffects(state *GameState) (speed_multiplier float64) {
+func (s *BaseSnake) UpdateEffects(state *GameState, hist *HistoryData) (speed_multiplier float64) {
 	speed_multiplier = 1.0
-	new_status_effects := []StatusEffect{}
+	new_status_effects := []*StatusEffect{}
 	for _, effect := range s.StatusEffects {
-		effect.Update(state)
+		effect.Update(s, state, hist)
 		if !effect.IsExpired() {
 			new_status_effects = append(new_status_effects, effect)
-			if effect.GetType() == StatusEffectSpeedBoost {
-				if sb, ok := effect.(*SpeedBoostEffect); ok {
-					speed_multiplier *= sb.Multiplier
-				}
+			if effect.Type == StatusEffectSpeedBoost {
+				speed_multiplier *= GPConfig.SpeedMultiplier
 			}
 		}
 	}
@@ -78,21 +88,29 @@ func (s *BaseSnake) UpdateMovement(state *GameState, speed_multiplier float64) {
 		}
 	}
 }
-func (s *BaseSnake) Update(state *GameState) {
-	if s.IsDead() {
-		s.UpdateEffects(state)
+func (s *BaseSnake) Update(state *GameState, hist *HistoryData) {
+	if s.IsDead() || s.HasStatusEffect(StatusEffectRespawning) {
+		s.UpdateEffects(state, hist)
 	} else {
 		if s.markedForDeath != "" {
-			s.die(s, s.markedForDeath, state)
+			s.die(s, s.markedForDeath, state, hist)
 			s.markedForDeath = ""
 			return
 		}
-		speed_multiplier := s.UpdateEffects(state)
+		speed_multiplier := s.UpdateEffects(state, hist)
 		s.UpdateMovement(state, speed_multiplier)
 	}
 }
 func (s *BaseSnake) IsDead() bool {
-	return len(s.StatusEffects) == 1 && s.StatusEffects[0].GetType() == StatusEffectDead
+	return len(s.StatusEffects) == 1 && s.StatusEffects[0].Type == StatusEffectDead
+}
+func (s *BaseSnake) HasStatusEffect(effectType StatusEffectType) bool {
+	for _, effect := range s.StatusEffects {
+		if effect.Type == effectType {
+			return true
+		}
+	}
+	return false
 }
 func (s *BaseSnake) CheckSelfCollision(other Collidable, state *GameState) (consumed bool) {
 	if other.GetCollider() == s.GetCollider() {
@@ -125,7 +143,7 @@ func (s *BaseSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state *G
 			s.markedForDeath = "snake collision"
 		} else {
 			// other snake's head collided with own body - add a kill to own score
-			LogInfo("Snake %v killed snake %v by collision at %v", s.GetOwner(), o.GetOwner(), tile)
+			// LogInfo("Snake %v killed snake %v by collision at %v", s.GetOwner(), o.GetOwner(), tile)
 		}
 	case *Apple:
 		s.Fett += o.Nutrition
@@ -140,14 +158,16 @@ func (s *BaseSnake) OnCollision(other Collidable, tile Vec2i, state *GameState) 
 	}
 }
 func (s *BaseSnake) OwnLayers() CollisionMask {
-	if s.IsDead() {
+	if s.IsDead() || s.HasStatusEffect(StatusEffectRespawning) {
 		return LayerNone
 	}
 	return LayerSnake
 }
 func (s *BaseSnake) ScanLayers() CollisionMask {
-	if s.IsDead() {
+	if s.IsDead() || s.HasStatusEffect(StatusEffectRespawning) {
 		return LayerNone
+	} else if s.HasStatusEffect(StatusEffectInvincibility) {
+		return LayerApple | LayerItem
 	}
 	return LayerSnake | LayerApple | LayerWall | LayerEntity | LayerItem
 }
@@ -162,6 +182,12 @@ type PlayerSnake struct {
 	Config     *PlayerConfig      `msgpack:"-"` // Reference to existing PlayerConfig struct (name, keys, stats)
 	HeldItem   ItemType           // Currently held item (ItemNone if empty)
 	InputQueue []PlayerActionTurn `msgpack:"-"`
+}
+
+func (s *PlayerSnake) OverWriteWith(other *PlayerSnake) {
+	s.BaseSnake.OverWriteWith(other.BaseSnake)
+	s.ID = other.ID
+	s.HeldItem = other.HeldItem
 }
 
 func NewPlayerSnake(base *BaseSnake, id int, config *PlayerConfig) *PlayerSnake {
@@ -217,34 +243,41 @@ func (s *PlayerSnake) HandleInput(new_action PlayerActionTurn, state *GameState)
 	}
 }
 
-func (s *PlayerSnake) UseItem(state *GameState) {
+func (s *PlayerSnake) UseItem(state *GameState, hist *HistoryData) {
 	if s.HeldItem != ItemNone {
+		consumed := false
 		if handler, ok := ItemRegistry[s.HeldItem]; ok {
-			handler(s.ID, state)
+			consumed = handler(s.ID, state, hist)
 			LogInfo("PlayerSnake %d used item %v", s.ID, s.HeldItem)
 		} else {
 			LogWarning("No handler found for item type %v", s.HeldItem)
 		}
-		s.HeldItem = ItemNone
+		if consumed {
+			s.HeldItem = ItemNone
+		}
 	}
 }
 
 // override Die to log player ID and check for revive item
-func DiePlayer(si *BaseSnake, reason string, state *GameState) {
+func DiePlayer(si *BaseSnake, reason string, state *GameState, hist *HistoryData) {
 	// TODO: add death to stats
 	// TODO: handle ghost behavior
-	state.PlaySoundEffect("Dead")
 	s, ok := si.owner.(*PlayerSnake)
 	if !ok {
 		LogWarning("DiePlayer called on BaseSnake with non-PlayerSnake owner")
 	}
 	LogInfo("PlayerSnake %d died: %s", s.ID, reason)
-	s.StatusEffects = []StatusEffect{&DeadEffect{}}
+	s.StatusEffects = []*StatusEffect{NewDeadStatusEffect()}
 	// Check for revive item before marking as dead
+	consumedRevive := false
 	if s.HeldItem == ItemRevive {
 		LogInfo("PlayerSnake %d used a revive item at death", s.ID)
+		consumedRevive = ItemRegistry[ItemRevive](s.ID, state, hist)
+	}
+	if consumedRevive {
 		s.HeldItem = ItemNone
-		ItemRegistry[ItemRevive](s.ID, state)
+	} else {
+		state.PlaySoundEffect("Dead")
 	}
 }
 

@@ -3,10 +3,14 @@ package game
 import (
 	"bytes"
 	"encoding/gob"
+	"sort"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 func init() {
 	gob.Register(&PlayerSnake{})
+	gob.Register(&EntityBase{})
 }
 
 type GameEventType int
@@ -32,8 +36,8 @@ func NewSoundEvent(soundName string) *GameEvent {
 
 // GameState holds the complete state of the simulation at a specific tick.
 type GameState struct {
-	Tick     uint64               `msgpack:"-"`
-	Map      *MapData             `msgpack:"-"`
+	Tick     uint64
+	Map      *MapData
 	Players  map[int]*PlayerSnake // Keyed by player ID
 	Apples   []*Apple             // Collectible apples
 	Items    []*Item              // Collectible items
@@ -41,8 +45,80 @@ type GameState struct {
 	Events   []*GameEvent         // for audio and visual effects
 }
 
+func (s *GameState) MarshalMsgpack() ([]byte, error) {
+	ids := make([]int, 0, len(s.Players))
+	pls := make([]*PlayerSnake, 0, len(s.Players))
+	for id, _ := range s.Players {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+	for _, id := range ids {
+		pls = append(pls, s.Players[id])
+	}
+	ag := &struct {
+		PlayersIDs []int
+		Players    []*PlayerSnake
+		Apples     []*Apple
+		Items      []*Item
+		Events     []*GameEvent
+	}{
+		PlayersIDs: ids,
+		Players:    pls,
+		Apples:     s.Apples,
+		Items:      s.Items,
+		Events:     s.Events,
+	}
+	b, err := msgpack.Marshal(ag)
+	if err != nil {
+		LogError("Failed to marshal GameState: %v", err)
+	}
+	return b, err
+}
+
+func (s *GameState) UnmarshalMsgpack(data []byte) error {
+	aux := &struct {
+		PlayersIDs []int
+		Players    []*PlayerSnake
+		Apples     []*Apple
+		Items      []*Item
+		Events     []*GameEvent
+	}{}
+	err := msgpack.Unmarshal(data, aux)
+	if err != nil {
+		return err
+	}
+	if len(aux.PlayersIDs) != len(s.Players) {
+		s.Players = make(map[int]*PlayerSnake)
+	}
+	for i, id := range aux.PlayersIDs {
+		if _, exists := s.Players[id]; !exists {
+			s.Players[id] = aux.Players[i]
+		} else {
+			s.Players[id].OverWriteWith(aux.Players[i])
+		}
+	}
+	if aux.Apples != nil {
+		s.Apples = aux.Apples
+	}
+	if aux.Items != nil {
+		s.Items = aux.Items
+	}
+	if aux.Events != nil {
+		s.Events = aux.Events
+	}
+	return nil
+}
+
+func (s *GameState) MarshalMutableObjects() ([]byte, error) {
+	return msgpack.Marshal(s)
+}
+
+func (s *GameState) UnmarshalMutableObjects(data []byte) error {
+	return msgpack.Unmarshal(data, s)
+}
+
 // Might not work at later times, since not all interfaces are registered.
-func (s *GameState) Encode() ([]byte, error) {
+func (s *GameState) MarshalAllObjects() ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	err := enc.Encode(s)
@@ -52,7 +128,7 @@ func (s *GameState) Encode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (s *GameState) Decode(data []byte) error {
+func (s *GameState) UnmarshalAllObjects(data []byte) error {
 	buf := bytes.NewBuffer(data)
 	dec := gob.NewDecoder(buf)
 	return dec.Decode(s)

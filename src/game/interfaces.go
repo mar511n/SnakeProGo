@@ -1,6 +1,8 @@
 package game
 
-import "github.com/hajimehoshi/ebiten/v2"
+import (
+	"github.com/hajimehoshi/ebiten/v2"
+)
 
 type InputProcessor func(playerConfigs map[int]*PlayerConfig) *InputFrame
 
@@ -13,14 +15,8 @@ type InputHandler interface {
 	HandleInput(input string, state *GameState)
 }
 
-type StatusEffect interface {
-	Updatable
-	GetType() StatusEffectType
-	IsExpired() bool
-}
-
 type Updatable interface {
-	Update(state *GameState)
+	Update(state *GameState, hist *HistoryData)
 }
 
 type Entity interface {
