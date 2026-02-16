@@ -1,9 +1,33 @@
 package game
 
 import (
+	"fmt"
+	"hash/fnv"
+	"path"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
+
+var adjectives = []string{
+	"epic", "incredible", "slimy", "wild", "furious", "sneaky", "giant", "tiny", "hungry", "angry",
+	"green", "dangerous", "fast", "ancient", "mystic", "dark", "golden", "silent", "brave", "cruel",
+	"crazy", "insane", "bloody", "chaotic", "peaceful", "intense", "savage", "fearsome", "magical", "venomous",
+	"eldritch", "stygian", "inexorable", "voracious", "pernicious", "insidious", "serried", "labyrinthine", "arcane",
+	"primordial", "spectral", "phantasmal", "cryptic", "ominous", "malevolent", "treacherous", "vengeful", "abyssal",
+	"lurid", "hallowed", "unseen", "shadowy", "ethereal", "tempestuous", "perfidious", "obsidian", "emerald", "crimson",
+}
+
+var events = []string{
+	"battle_of", "clash_of", "dance_of", "escape_of", "hunt_of", "journey_of", "legend_of", "mystery_of",
+	"rise_of", "fall_of", "attack_of", "revenge_of", "duel_of", "invasion_of", "panic_of", "feast_of",
+	"chase_of", "race_of", "doom_of", "awakening_of",
+}
+
+var participants = []string{
+	"anacondas", "pythons", "vipers", "cobras", "worms", "noodles", "serpents", "reptiles", "dragons", "lizards",
+	"boas", "rattlers", "mambas", "asps", "constrictors", "hydras", "basilisks", "sidewinders", "sneks", "predators",
+}
 
 type ReplaySession struct {
 	currTick      int
@@ -12,6 +36,42 @@ type ReplaySession struct {
 	State         *GameState
 	History       *HistoryData
 	Paused        bool
+	rm            *ResourceManager
+}
+
+func (r *ReplaySession) GenerateReplayVideoFilename() string {
+	// Generate a unique hash based on history data
+	hasher := fnv.New32a()
+	hasher.Write(r.History.InitData)
+	for _, v := range r.History.VarData {
+		hasher.Write(v)
+	}
+	hash := hasher.Sum32()
+
+	// Pick words based on the hash
+	// Use the hash to seed a simple generator
+	lAdj := uint32(len(adjectives))
+	lEvt := uint32(len(events))
+	lPar := uint32(len(participants))
+
+	idx1 := (hash) % lAdj
+	idx2 := (hash / lAdj) % lEvt
+	idx3 := (hash / (lAdj * lEvt)) % lAdj
+	idx4 := (hash / (lAdj * lEvt * lAdj)) % lPar
+
+	return fmt.Sprintf("%s_%s_%s_%s.mp4", adjectives[idx1], events[idx2], adjectives[idx3], participants[idx4])
+}
+
+func (r *ReplaySession) RenderAndSaveVideo() {
+	filename := r.GenerateReplayVideoFilename()
+	filename = path.Join(BaseSystemPath, filename)
+	LogInfo("Rendering replay video to %s...", filename)
+	err := r.History.RenderToVideo(filename, r.rm)
+	if err != nil {
+		LogError("Failed to render replay video: %v", err)
+	} else {
+		LogInfo("Replay video saved as %s", filename)
+	}
 }
 
 func (r *ReplaySession) Seek(tick int) {
@@ -50,6 +110,9 @@ func (r *ReplaySession) Update() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		r.escapePressed = true
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyS) {
+		r.RenderAndSaveVideo()
+	}
 	if !r.Paused && r.currTick < int(r.History.Ticks[len(r.History.Ticks)-1])-1 {
 		r.currTick++
 	}
@@ -76,13 +139,14 @@ func (r *ReplaySession) Update() {
 	}
 }
 
-func NewReplaySession(history *HistoryData) *ReplaySession {
+func NewReplaySession(history *HistoryData, rm *ResourceManager) *ReplaySession {
 	r := &ReplaySession{
 		currTick:    0,
 		lastTickIdx: 0,
 		State:       &GameState{},
 		History:     history,
 		Paused:      false,
+		rm:          rm,
 	}
 	err := r.History.FullReconstructState(-1, r.State)
 	if err != nil {

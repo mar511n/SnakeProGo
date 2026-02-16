@@ -16,6 +16,10 @@ type DefaultRenderer struct {
 	Filter           ebiten.Filter
 	ItemBarWidthRel  float64
 	ImageTilePadding float64
+	screenwidth      int
+	screenheight     int
+	displayTPS       bool
+	displayFPS       bool
 
 	Antialias       bool
 	TileSize        float64
@@ -30,36 +34,40 @@ func NewDefaultRenderer(rm *ResourceManager) *DefaultRenderer {
 		Filter:           ebiten.FilterNearest,
 		ItemBarWidthRel:  0.08,
 		ImageTilePadding: 0.5,
+		screenwidth:      GConfig.ScreenWidth,
+		screenheight:     GConfig.ScreenHeight,
+		displayTPS:       GConfig.DisplayTPS,
+		displayFPS:       GConfig.DisplayFPS,
 	}
 }
 
 func (r *DefaultRenderer) InitRender(useAntialias bool, state *GameState) {
 	r.Antialias = useAntialias
 	playernum := len(state.Players)
-	r.ItemBarWidth = r.ItemBarWidthRel * float64(GConfig.ScreenWidth)
-	r.TileSize = float64(GConfig.ScreenHeight) / float64(state.Map.Collider.Height)
-	tsw := (float64(GConfig.ScreenWidth) - r.ItemBarWidth) / float64(state.Map.Collider.Width)
+	r.ItemBarWidth = r.ItemBarWidthRel * float64(r.screenwidth)
+	r.TileSize = float64(r.screenheight) / float64(state.Map.Collider.Height)
+	tsw := (float64(r.screenwidth) - r.ItemBarWidth) / float64(state.Map.Collider.Width)
 	if r.TileSize > tsw {
 		r.TileSize = tsw
 	}
 
-	r.ItemBarTileSize = float64(GConfig.ScreenHeight) / float64(2*playernum+1)
+	r.ItemBarTileSize = float64(r.screenheight) / float64(2*playernum+1)
 	if r.ItemBarWidth/2 < r.ItemBarTileSize {
 		r.ItemBarTileSize = r.ItemBarWidth / 2
 	}
-	r.ItemBarOffset = float64(GConfig.ScreenHeight)/2 - r.ItemBarTileSize*float64(2*playernum+1)/2
+	r.ItemBarOffset = float64(r.screenheight)/2 - r.ItemBarTileSize*float64(2*playernum+1)/2
 }
 
-func (r *DefaultRenderer) GetTileDrawOptions(img *ebiten.Image, tx, ty int, oritentation, tilesnumx, tilesize float64) *ebiten.DrawImageOptions {
+func (r *DefaultRenderer) GetTileDrawOptions(img *ebiten.Image, tx, ty int, oritentation, tilesnumx, tilesize, tilepadding float64) *ebiten.DrawImageOptions {
 	op := &ebiten.DrawImageOptions{}
 	op.Filter = r.Filter
-	scale := (2*r.ImageTilePadding + tilesnumx) * tilesize / float64(img.Bounds().Dx())
+	scale := (2*tilepadding + tilesnumx) * tilesize / float64(img.Bounds().Dx())
 
 	op.GeoM.Translate(-float64(img.Bounds().Dx())/2, -float64(img.Bounds().Dy())/2)
 	op.GeoM.Rotate(math.Pi / 2 * oritentation)
 	op.GeoM.Translate(float64(img.Bounds().Dx())/2, float64(img.Bounds().Dy())/2)
 	op.GeoM.Scale(scale, scale)
-	op.GeoM.Translate((float64(tx)-r.ImageTilePadding)*tilesize, (float64(ty)-r.ImageTilePadding)*tilesize)
+	op.GeoM.Translate((float64(tx)-tilepadding)*tilesize, (float64(ty)-tilepadding)*tilesize)
 
 	return op
 }
@@ -79,7 +87,7 @@ func (r *DefaultRenderer) DrawSnake(screen *ebiten.Image, tiles []Vec2i, facing 
 		// render tail
 		tail := tiles[len(tiles)-1]
 		tailOrit := tiles[len(tiles)-2].Sub(tail).Orientation()
-		op := r.GetTileDrawOptions(bodyparts[4], int(tail.X), int(tail.Y), float64(tailOrit), 1, r.TileSize)
+		op := r.GetTileDrawOptions(bodyparts[4], int(tail.X), int(tail.Y), float64(tailOrit), 1, r.TileSize, r.ImageTilePadding)
 		op.ColorScale = *cs
 		screen.DrawImage(bodyparts[4], op)
 	}
@@ -106,7 +114,7 @@ func (r *DefaultRenderer) DrawSnake(screen *ebiten.Image, tiles []Vec2i, facing 
 				LogWarning("Invalid snake body configuration at tile %v", tile)
 				continue
 			}
-			op := r.GetTileDrawOptions(bodyparts[bodyIdx], int(tile.X), int(tile.Y), float64(bodyO), 1, r.TileSize)
+			op := r.GetTileDrawOptions(bodyparts[bodyIdx], int(tile.X), int(tile.Y), float64(bodyO), 1, r.TileSize, r.ImageTilePadding)
 			op.ColorScale = *cs
 			screen.DrawImage(bodyparts[bodyIdx], op)
 		}
@@ -117,7 +125,7 @@ func (r *DefaultRenderer) DrawSnake(screen *ebiten.Image, tiles []Vec2i, facing 
 	if len(tiles) > 1 {
 		headOrit = (head.Sub(tiles[1]).Orientation() + 1) % 4
 	}
-	op := r.GetTileDrawOptions(bodyparts[3], int(head.X), int(head.Y), float64(headOrit), 1, r.TileSize)
+	op := r.GetTileDrawOptions(bodyparts[3], int(head.X), int(head.Y), float64(headOrit), 1, r.TileSize, r.ImageTilePadding)
 	op.ColorScale = *cs
 	screen.DrawImage(bodyparts[3], op)
 }
@@ -135,6 +143,16 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 		}
 	}
 
+	// Render entities that are at the bottom
+	for _, entity := range state.Entities {
+		switch e := entity.(type) {
+		case *FartEntity:
+			fart_img := r.Rm.Images[ItemCategoryName][ItemFartCloudName]
+			op := r.GetTileDrawOptions(fart_img, int(e.Center.X)-GPConfig.FartSize, int(e.Center.Y)-GPConfig.FartSize, 0, float64(1+2*GPConfig.FartSize), r.TileSize, 0.0)
+			screen.DrawImage(fart_img, op)
+		}
+	}
+
 	// Render apples
 	for _, apple := range state.Apples {
 		img, ok := r.Rm.Images[FoodCategoryName][AppleFileName]
@@ -142,7 +160,7 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 			LogError("Apple image not found in resource manager, cannot render apple")
 			continue
 		}
-		op := r.GetTileDrawOptions(img, int(apple.Collider.Tiles[0].X), int(apple.Collider.Tiles[0].Y), 0, 1, r.TileSize)
+		op := r.GetTileDrawOptions(img, int(apple.Collider.Tiles[0].X), int(apple.Collider.Tiles[0].Y), 0, 1, r.TileSize, r.ImageTilePadding)
 		screen.DrawImage(img, op)
 	}
 
@@ -153,21 +171,21 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 			LogError("Item image for item type %v not found in resource manager, cannot render item", item.ItemType)
 			continue
 		}
-		op := r.GetTileDrawOptions(img, int(item.Collider.Tiles[0].X), int(item.Collider.Tiles[0].Y), 0, 1, r.TileSize)
+		op := r.GetTileDrawOptions(img, int(item.Collider.Tiles[0].X), int(item.Collider.Tiles[0].Y), 0, 1, r.TileSize, r.ImageTilePadding)
 		screen.DrawImage(img, op)
 	}
 
-	// Render entities
+	// Render entities above apples and items
 	for _, entity := range state.Entities {
 		switch e := entity.(type) {
 		case *BulletEntity:
 			bullet_img := r.Rm.Images[ItemCategoryName][ItemShotBulletName]
 			trail_img := r.Rm.Images[ItemCategoryName][ItemShotTrailName]
 			for _, pos := range e.Trail[:len(e.Trail)-1] {
-				op := r.GetTileDrawOptions(trail_img, int(pos.X), int(pos.Y), float64((e.Dir.Orientation()+1)%4), 1, r.TileSize)
+				op := r.GetTileDrawOptions(trail_img, int(pos.X), int(pos.Y), float64((e.Dir.Orientation()+1)%4), 1, r.TileSize, r.ImageTilePadding)
 				screen.DrawImage(trail_img, op)
 			}
-			op := r.GetTileDrawOptions(bullet_img, int(e.Collider.Tiles[0].X), int(e.Collider.Tiles[0].Y), float64((e.Dir.Orientation()+1)%4), 1, r.TileSize)
+			op := r.GetTileDrawOptions(bullet_img, int(e.Collider.Tiles[0].X), int(e.Collider.Tiles[0].Y), float64((e.Dir.Orientation()+1)%4), 1, r.TileSize, r.ImageTilePadding)
 			screen.DrawImage(bullet_img, op)
 		}
 	}
@@ -197,7 +215,7 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 	}
 
 	// Render UI
-	vector.FillRect(screen, float32(GConfig.ScreenWidth)-float32(r.ItemBarWidth), 0, float32(r.ItemBarWidth), float32(GConfig.ScreenHeight), color.Gray{Y: 80}, r.Antialias)
+	vector.FillRect(screen, float32(r.screenwidth)-float32(r.ItemBarWidth), 0, float32(r.ItemBarWidth), float32(r.screenheight), color.Gray{Y: 80}, r.Antialias)
 	for idx, id := range IDs {
 		snake := state.Players[id]
 		// render snake head as icon for item bar
@@ -206,8 +224,8 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 			LogError("Snake head image for player %d not found in resource manager, cannot render item bar", id)
 			continue
 		}
-		op := r.GetTileDrawOptions(img, 0, 0, -1, 1, r.ItemBarTileSize)
-		op.GeoM.Translate(float64(GConfig.ScreenWidth)-r.ItemBarTileSize, r.ItemBarOffset+float64(1+2*idx)*r.ItemBarTileSize)
+		op := r.GetTileDrawOptions(img, 0, 0, -1, 1, r.ItemBarTileSize, r.ImageTilePadding)
+		op.GeoM.Translate(float64(r.screenwidth)-r.ItemBarTileSize, r.ItemBarOffset+float64(1+2*idx)*r.ItemBarTileSize)
 		screen.DrawImage(img, op)
 		// render item below snake head
 		if snake.HeldItem != ItemNone {
@@ -216,16 +234,16 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 				LogError("Item image for held item %v of player %d not found in resource manager, cannot render item bar", snake.HeldItem.FileName(), id)
 				continue
 			}
-			op := r.GetTileDrawOptions(img, 0, 0, 0, 1, r.ItemBarTileSize)
-			op.GeoM.Translate(float64(GConfig.ScreenWidth)-2*r.ItemBarTileSize, r.ItemBarOffset+float64(1+2*idx)*r.ItemBarTileSize)
+			op := r.GetTileDrawOptions(img, 0, 0, 0, 1, r.ItemBarTileSize, r.ImageTilePadding)
+			op.GeoM.Translate(float64(r.screenwidth)-2*r.ItemBarTileSize, r.ItemBarOffset+float64(1+2*idx)*r.ItemBarTileSize)
 			screen.DrawImage(img, op)
 		}
 	}
 
-	if GConfig.DisplayFPS {
+	if r.displayFPS {
 		ebitenutil.DebugPrintAt(screen, "FPS: "+strconv.Itoa(int(ebiten.ActualFPS())), 10, 10)
 	}
-	if GConfig.DisplayTPS {
+	if r.displayTPS {
 		ebitenutil.DebugPrintAt(screen, "TPS: "+strconv.Itoa(int(ebiten.ActualTPS())), 10, 30)
 	}
 }

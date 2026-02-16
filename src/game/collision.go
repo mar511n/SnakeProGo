@@ -35,6 +35,16 @@ type CollisionTiles struct {
 	Tiles []Vec2i
 }
 
+func NewCollisionRectangle(p0 Vec2i, width, height int) *CollisionTiles {
+	tiles := make([]Vec2i, width*height)
+	for x := 0; x < width; x++ {
+		for y := 0; y < height; y++ {
+			tiles[y*width+x] = Vec2i{X: p0.X + int16(x), Y: p0.Y + int16(y)}
+		}
+	}
+	return &CollisionTiles{Tiles: tiles}
+}
+
 func (c *CollisionTiles) IsColliding(other CollisionObject) (bool, Vec2i) {
 	switch o := other.(type) {
 	case *CollisionTiles:

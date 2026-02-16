@@ -3,6 +3,8 @@ package game
 import (
 	"bytes"
 	"errors"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type HistoryData struct {
@@ -10,6 +12,35 @@ type HistoryData struct {
 	Ticks    []uint64
 	VarSize  int
 	InitData []byte
+}
+
+func (h *HistoryData) RenderToVideo(filename string, rm *ResourceManager) error {
+	video := make([]*ebiten.Image, len(h.VarData))
+	frameIndices := make([]int, len(h.VarData))
+
+	state := &GameState{}
+	err := state.UnmarshalAllObjects(h.InitData)
+	if err != nil {
+		return err
+	}
+
+	renderer := NewDefaultRenderer(rm)
+	renderer.InitRender(true, state)
+	renderer.displayFPS = false
+	renderer.displayTPS = false
+
+	for i, data := range h.VarData {
+		video[i] = ebiten.NewImage(GConfig.ScreenWidth, GConfig.ScreenHeight)
+		frameIndices[i] = int(h.Ticks[i])
+		err := state.UnmarshalMutableObjects(data)
+		state.Tick = h.Ticks[i]
+		if err != nil {
+			return err
+		}
+		renderer.Render(state, video[i])
+	}
+
+	return RenderVideo(video, frameIndices, GConfig.TPS, filename)
 }
 
 func (h *HistoryData) ReconstructState(tick int, state *GameState) error {

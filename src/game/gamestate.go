@@ -56,9 +56,13 @@ func (s *GameState) MarshalMsgpack() ([]byte, error) {
 		pls = append(pls, s.Players[id])
 	}
 	bullets := make([]*BulletEntity, 0)
+	farts := make([]*FartEntity, 0)
 	for _, entity := range s.Entities {
 		if b, ok := entity.(*BulletEntity); ok {
 			bullets = append(bullets, b)
+		}
+		if f, ok := entity.(*FartEntity); ok {
+			farts = append(farts, f)
 		}
 	}
 	ag := &struct {
@@ -68,6 +72,7 @@ func (s *GameState) MarshalMsgpack() ([]byte, error) {
 		Items      []*Item
 		Events     []*GameEvent
 		Bullets    []*BulletEntity
+		Farts      []*FartEntity
 	}{
 		PlayersIDs: ids,
 		Players:    pls,
@@ -75,6 +80,7 @@ func (s *GameState) MarshalMsgpack() ([]byte, error) {
 		Items:      s.Items,
 		Events:     s.Events,
 		Bullets:    bullets,
+		Farts:      farts,
 	}
 	b, err := msgpack.Marshal(ag)
 	if err != nil {
@@ -91,6 +97,7 @@ func (s *GameState) UnmarshalMsgpack(data []byte) error {
 		Items      []*Item
 		Events     []*GameEvent
 		Bullets    []*BulletEntity
+		Farts      []*FartEntity
 	}{}
 	err := msgpack.Unmarshal(data, aux)
 	if err != nil {
@@ -123,6 +130,17 @@ func (s *GameState) UnmarshalMsgpack(data []byte) error {
 	} else {
 		for _, entity := range s.Entities {
 			if _, ok := entity.(*BulletEntity); !ok {
+				newEntities = append(newEntities, entity)
+			}
+		}
+	}
+	if aux.Farts != nil {
+		for _, f := range aux.Farts {
+			newEntities = append(newEntities, f)
+		}
+	} else {
+		for _, entity := range s.Entities {
+			if _, ok := entity.(*FartEntity); !ok {
 				newEntities = append(newEntities, entity)
 			}
 		}

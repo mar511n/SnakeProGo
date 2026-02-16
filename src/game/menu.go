@@ -12,21 +12,23 @@ import (
 )
 
 type MainMenu struct {
-	inputBuffer []rune
-	history     []string
-	cursorBlink int
-	players     []string
-	OnStartGame func()
-	OnReplay    func()
+	inputBuffer        []rune
+	history            []string
+	cursorBlink        int
+	players            []string
+	OnStartGame        func()
+	OnReplay           func()
+	OnControllerConfig func()
 }
 
-func NewMainMenu(startGameCallback func()) *MainMenu {
+func NewMainMenu(startGameCallback func(), controllerConfigCallback func()) *MainMenu {
 	return &MainMenu{
 		history: []string{
 			"Welcome to SnakeProGo!",
 		},
-		players:     []string{},
-		OnStartGame: startGameCallback,
+		players:            []string{},
+		OnStartGame:        startGameCallback,
+		OnControllerConfig: controllerConfigCallback,
 	}
 }
 
@@ -80,6 +82,7 @@ func (m *MainMenu) Draw(screen *ebiten.Image) {
 		"  listplayers (lpl)\n" +
 		"  replay (r)\n" +
 		"  showconfig (sc) [global/game/username]\n" +
+		"  controller (c)\n" +
 		"  startgame (start)\n" +
 		"  quit (q)\n" +
 		"----------------------------------------\n"
@@ -112,8 +115,19 @@ func (m *MainMenu) processCommand(cmd string) {
 	args := parts[1:]
 
 	switch command {
+	case "controller", "c":
+		m.AddHistory("Entering controller configuration mode. Press any button on your controller to see its Name and SDL ID in the history. Press Escape to exit this mode.")
+		ids := ebiten.AppendGamepadIDs([]ebiten.GamepadID{})
+		sdlids := make([]string, len(ids))
+		for i, id := range ids {
+			sdlids[i] = ebiten.GamepadSDLID(id)
+		}
+		m.AddHistory(fmt.Sprintf("Detected controllers: %v", sdlids))
+		if m.OnControllerConfig != nil {
+			m.OnControllerConfig()
+		}
 	case "replay", "r":
-		m.history = append(m.history, "Replaying game...")
+		m.AddHistory("Replaying game...")
 		if m.OnReplay != nil {
 			m.OnReplay()
 		}

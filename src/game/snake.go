@@ -289,6 +289,14 @@ func DiePlayer(si *BaseSnake, reason string, state *GameState, hist *HistoryData
 	}
 }
 
+func (s *PlayerSnake) RemoveTiles(num int, death_reason string) {
+	if len(s.Body.Tiles)-num < GPConfig.SnakeSurvivalLength {
+		s.MarkForDeath(death_reason)
+	} else {
+		s.Body.Tiles = s.Body.Tiles[:len(s.Body.Tiles)-num]
+	}
+}
+
 func (s *PlayerSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state *GameState) {
 	other_owner := other.GetOwner()
 
@@ -311,22 +319,17 @@ func (s *PlayerSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state 
 		s.HeldItem = o.ItemType
 		o.IsConsumed = true
 	case *BulletEntity:
-		if tile.Equals(s.Body.Tiles[0]) {
-			s.MarkForDeath(fmt.Sprintf("shot by player %d", o.OwnerID))
+		ti := -1
+		for i, t := range s.Body.Tiles {
+			if tile.Equals(t) {
+				ti = i
+				break
+			}
+		}
+		if ti != -1 {
+			s.RemoveTiles(len(s.Body.Tiles)-ti, fmt.Sprintf("shot by player %d", o.OwnerID))
 		} else {
-			ti := -1
-			for i, t := range s.Body.Tiles {
-				if tile.Equals(t) {
-					ti = i
-					break
-				}
-			}
-			if ti != -1 {
-				s.Body.Tiles = s.Body.Tiles[:ti]
-			}
-			if len(s.Body.Tiles) < GPConfig.SnakeSurvivalLength {
-				s.MarkForDeath(fmt.Sprintf("shot by player %d", o.OwnerID))
-			}
+			LogWarning("BulletEntity collided with snake %d at tile %v but no matching body tile found", s.ID, tile)
 		}
 	default:
 		LogInfo("Unhandled collision at %v with object of type %v", tile, other_owner)

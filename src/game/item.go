@@ -110,6 +110,7 @@ func InitializeItems() {
 	ItemChances[ItemSpeed] = GPConfig.ItemSpeedChance
 	ItemChances[ItemRevive] = GPConfig.ItemReviveChance
 	ItemChances[ItemShooting] = GPConfig.ItemShootingChance
+	ItemChances[ItemFart] = GPConfig.ItemFartChance
 	//TODO: This is where we would register all item behaviors.
 
 	ItemRegistry[ItemSpeed] = func(userID int, state *GameState, hist *HistoryData) bool {
@@ -163,6 +164,21 @@ func InitializeItems() {
 			pl.ID,
 			pl.Body.Tiles[0].Add(pl.Facing),
 			pl.Facing,
+		))
+		consumed = true
+		return
+	}
+	ItemRegistry[ItemFart] = func(userID int, state *GameState, hist *HistoryData) (consumed bool) {
+		consumed = false
+		pl, ok := state.Players[userID]
+		if !ok {
+			LogWarning("Player %d not found while trying to use Fart Item", userID)
+			return
+		}
+		state.PlaySoundEffect("Farting")
+		state.Entities = append(state.Entities, NewFart(
+			pl.ID,
+			pl.Body.Tiles[len(pl.Body.Tiles)-1],
 		))
 		consumed = true
 		return

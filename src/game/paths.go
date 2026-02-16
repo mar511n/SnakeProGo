@@ -34,6 +34,7 @@ var (
 	ItemCategoryName   = "Items"
 	ItemShotBulletName = "shot_bullet"
 	ItemShotTrailName  = "shot_stripes"
+	ItemFartCloudName  = "fart_area"
 
 	// category name for Food
 	FoodCategoryName = "Food"

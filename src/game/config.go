@@ -32,6 +32,7 @@ type GameplayConfig struct {
 	InputQueueSize              int     `toml:"input_queue_size"`              // max number of buffered input actions for snakes
 	SnakeSpeed                  float64 `toml:"snake_speed"`                   // segments/second
 	MapPath                     string  `toml:"map_path"`                      // relative path from assets to default map file
+	StartInvincibilityDuration  float64 `toml:"start_invincibility_duration"`  // duration of invincibility at the start of the game in seconds
 	AppleCount                  int     `toml:"apple_count"`                   // number of apples on map
 	AppleNutrition              int     `toml:"apple_nutrition"`               // length increase per apple
 	AppleRotTime                float64 `toml:"apple_rot_time"`                // time in seconds before apple rots
@@ -60,9 +61,11 @@ type GameplayConfig struct {
 }
 
 type PlayerConfig struct {
-	Name   string            `toml:"name"`    // player name
-	KeyMap map[string]string `toml:"key_map"` // keys for [up/down/left/right] and [turn_left/turn_right] and use_item
-	Stats  map[string]int    `toml:"stats"`   // player statistics like games played, apples eaten, etc.
+	Name            string            `toml:"name"`              // player name
+	KeyMap          map[string]string `toml:"key_map"`           // keys for [up/down/left/right] and [turn_left/turn_right] and use_item
+	ControllerMap   map[string]string `toml:"controller_map"`    // controller buttons for [up/down/left/right] and [turn_left/turn_right] and use_item
+	ControllerSDLID string            `toml:"controller_sdl_id"` // SDL ID of the controller assigned to this player
+	Stats           map[string]int    `toml:"stats"`             // player statistics like games played, apples eaten, etc.
 }
 
 var (
@@ -156,6 +159,7 @@ func loadGameplayConfig() {
 			InputQueueSize:              4,
 			SnakeSpeed:                  4.0,
 			MapPath:                     "maps/default.txt",
+			StartInvincibilityDuration:  3.0,
 			AppleCount:                  15,
 			AppleNutrition:              1,
 			AppleRotTime:                60,
@@ -214,7 +218,17 @@ func GetPlayerConfig(name string) *PlayerConfig {
 				"turn_right": ebiten.KeyRight.String(),
 				"use_item":   ebiten.KeySpace.String(),
 			},
-			Stats: make(map[string]int),
+			ControllerMap: map[string]string{
+				"up":         MarshalStandardGamepadButton(ebiten.StandardGamepadButtonLeftTop),
+				"down":       MarshalStandardGamepadButton(ebiten.StandardGamepadButtonLeftBottom),
+				"left":       MarshalStandardGamepadButton(ebiten.StandardGamepadButtonLeftLeft),
+				"right":      MarshalStandardGamepadButton(ebiten.StandardGamepadButtonLeftRight),
+				"turn_left":  MarshalStandardGamepadButton(ebiten.StandardGamepadButtonFrontTopLeft),
+				"turn_right": MarshalStandardGamepadButton(ebiten.StandardGamepadButtonFrontTopRight),
+				"use_item":   MarshalStandardGamepadButton(ebiten.StandardGamepadButtonRightRight),
+			},
+			ControllerSDLID: "",
+			Stats:           make(map[string]int),
 		}
 
 		saveConfig(path, cfg)

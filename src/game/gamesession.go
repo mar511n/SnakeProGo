@@ -3,6 +3,7 @@ package game
 import (
 	"os"
 	"path/filepath"
+	"time"
 )
 
 type GameSession struct {
@@ -13,6 +14,7 @@ type GameSession struct {
 	OnGameOver     func(winnerIDs []int, hist *HistoryData) // Callback for game over, with winner IDs
 	History        *HistoryData
 	inputprocessor InputProcessor
+	updatetimes    []time.Duration
 }
 
 func (s *GameSession) Initialize() {
@@ -26,9 +28,12 @@ func (s *GameSession) Initialize() {
 		s.State.Items[i] = s.State.SpawnItem()
 	}
 	s.History.Init(s.State)
+	s.updatetimes = make([]time.Duration, 0, int(GConfig.TPS)*10)
 }
 func (s *GameSession) Update() {
 	s.State.Tick++
+
+	startTime := time.Now()
 	// process input
 	input := s.inputprocessor(s.RegisteredPlayers)
 	// update players
@@ -96,6 +101,31 @@ func (s *GameSession) Update() {
 	s.History.AddEntry(s.State)
 	s.State.Events = []*GameEvent{}
 
+	elapsed := time.Since(startTime)
+	s.updatetimes = append(s.updatetimes, elapsed)
+	if len(s.updatetimes) > int(GConfig.TPS)*10 {
+		s.updatetimes = s.updatetimes[1:]
+	}
+	relElapsed := int(elapsed.Seconds() * float64(GConfig.TPS) * 100)
+	if relElapsed > 80 {
+		LogWarning("Update took above 80%% of tick duration! (%v)", elapsed)
+	}
+
+	if int(s.State.Tick)%(GConfig.TPS*10) == 0 {
+		avgUpdateTime := time.Duration(0)
+		maxUpdateTime := time.Duration(0)
+		for _, t := range s.updatetimes {
+			avgUpdateTime += t
+			if t > maxUpdateTime {
+				maxUpdateTime = t
+			}
+		}
+		avgUpdateTime /= time.Duration(len(s.updatetimes))
+		relavgUpdateTime := int(avgUpdateTime.Seconds() * float64(GConfig.TPS) * 100)
+		relmaxUpdateTime := int(maxUpdateTime.Seconds() * float64(GConfig.TPS) * 100)
+		LogInfo("Tick: %d, Avg Update Time: %v (%v/100), Max Update Time: %v (%v/100), Last Update Time: %v", s.State.Tick, avgUpdateTime, relavgUpdateTime, maxUpdateTime, relmaxUpdateTime, elapsed)
+	}
+
 	// check win conditions
 	for _, condition := range s.WindConditions {
 		game_over, winnerIDs := condition(s.State)
@@ -132,6 +162,7 @@ func NewGameSession(gameoverCallback func(winnerIDs []int, hist *HistoryData)) *
 			id,
 			PConfigs[pname],
 		)
+		players[id].StatusEffects = append(players[id].StatusEffects, NewInvincibilityStatusEffect(GPConfig.StartInvincibilityDuration))
 		idx++
 		LogInfo("Registered player %s with ID %d", pname, id)
 	}

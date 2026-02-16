@@ -5,6 +5,41 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
+var StandardGamepadButtonMapping = map[ebiten.StandardGamepadButton]string{
+	ebiten.StandardGamepadButtonRightBottom:      "RightBottom",
+	ebiten.StandardGamepadButtonRightRight:       "RightRight",
+	ebiten.StandardGamepadButtonRightLeft:        "RightLeft",
+	ebiten.StandardGamepadButtonRightTop:         "RightTop",
+	ebiten.StandardGamepadButtonFrontTopLeft:     "FrontTopLeft",
+	ebiten.StandardGamepadButtonFrontTopRight:    "FrontTopRight",
+	ebiten.StandardGamepadButtonFrontBottomLeft:  "FrontBottomLeft",
+	ebiten.StandardGamepadButtonFrontBottomRight: "FrontBottomRight",
+	ebiten.StandardGamepadButtonCenterLeft:       "CenterLeft",
+	ebiten.StandardGamepadButtonCenterRight:      "CenterRight",
+	ebiten.StandardGamepadButtonLeftStick:        "LeftStick",
+	ebiten.StandardGamepadButtonRightStick:       "RightStick",
+	ebiten.StandardGamepadButtonLeftTop:          "LeftTop",
+	ebiten.StandardGamepadButtonLeftBottom:       "LeftBottom",
+	ebiten.StandardGamepadButtonLeftLeft:         "LeftLeft",
+	ebiten.StandardGamepadButtonLeftRight:        "LeftRight",
+	ebiten.StandardGamepadButtonCenterCenter:     "CenterCenter",
+}
+
+func MarshalStandardGamepadButton(btn ebiten.StandardGamepadButton) string {
+	if name, ok := StandardGamepadButtonMapping[btn]; ok {
+		return name
+	}
+	return "Unknown"
+}
+func UnmarshalStandardGamepadButton(name string) (ebiten.StandardGamepadButton, bool) {
+	for btn, btnName := range StandardGamepadButtonMapping {
+		if btnName == name {
+			return btn, true
+		}
+	}
+	return 0, false
+}
+
 type PlayerActionTurn int
 
 const (
@@ -72,6 +107,24 @@ func (i *InputFrame) Process(playerConfigs map[int]*PlayerConfig) {
 						i.ItemsUsed[pID] = true
 					} else if act, ok := actionMap[actionStr]; ok {
 						i.Directions[pID] = act
+					}
+				}
+			}
+		}
+
+		for _, gamepadid := range ebiten.AppendGamepadIDs([]ebiten.GamepadID{}) {
+			if config.ControllerSDLID == ebiten.GamepadSDLID(gamepadid) {
+				for actionStr, btnName := range config.ControllerMap {
+					btn, ok := UnmarshalStandardGamepadButton(btnName)
+					if !ok {
+						continue
+					}
+					if inpututil.IsStandardGamepadButtonJustPressed(gamepadid, btn) {
+						if actionStr == "use_item" {
+							i.ItemsUsed[pID] = true
+						} else if act, ok := actionMap[actionStr]; ok {
+							i.Directions[pID] = act
+						}
 					}
 				}
 			}
