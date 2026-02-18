@@ -106,6 +106,7 @@ func main() {
 	game.LogInfo("Using base path: %s", game.BaseSystemPath)
 
 	game.LoadConfigs()
+	game.InitLLM()
 	ebitengame := &Game{mode: ModeMenu}
 	ebitengame.resources = &game.ResourceManager{}
 	ebitengame.resources.LoadAssets(filepath.Join(game.BaseSystemPath, game.ResDir, game.AssetsDir), "Images", "Sounds", "Icons")
