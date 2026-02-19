@@ -71,6 +71,45 @@ type InputFrame struct {
 	ItemsUsed  map[int]bool             // Keyed by player ID, true indicates item usage
 }
 
+func (i *InputFrame) ProcessSmartInput(code string, playername string, playerConfigs map[int]*PlayerConfig) {
+	// code is a string of 5 bits: [up, down, left, right, use_item]
+	if len(code) != 5 {
+		return
+	}
+	pid := -1
+	for id, cfg := range playerConfigs {
+		if cfg.Name == playername {
+			pid = id
+			break
+		}
+	}
+	if pid == -1 {
+		return
+	}
+	if i.Directions == nil {
+		i.Directions = make(map[int]PlayerActionTurn)
+	}
+	if i.ItemsUsed == nil {
+		i.ItemsUsed = make(map[int]bool)
+	}
+	for idx, char := range code {
+		if char == '1' {
+			switch idx {
+			case 0:
+				i.Directions[pid] = ActionLeft
+			case 1:
+				i.Directions[pid] = ActionRight
+			case 2:
+				i.Directions[pid] = ActionUp
+			case 3:
+				i.Directions[pid] = ActionDown
+			case 4:
+				i.ItemsUsed[pid] = true
+			}
+		}
+	}
+}
+
 // Process reads current hardware inputs and populates Directions and ItemsUsed based on player keymaps.
 func (i *InputFrame) Process(playerConfigs map[int]*PlayerConfig) {
 	if i.Directions == nil {
@@ -132,8 +171,21 @@ func (i *InputFrame) Process(playerConfigs map[int]*PlayerConfig) {
 	}
 }
 
+var GlobalSmartController *SmartController
+
+func InitSmartController(onNewConnection func()) {
+	GlobalSmartController = &SmartController{
+		OnNewConnection:  onNewConnection,
+		ChanAssignPlayer: make(chan string),
+	}
+	go GlobalSmartController.StartServer(GConfig.SmartControllerPort)
+}
+
 func DefaultInputProcessor(playerConfigs map[int]*PlayerConfig) *InputFrame {
 	input := &InputFrame{}
 	input.Process(playerConfigs)
+	if GlobalSmartController != nil {
+		GlobalSmartController.ProcessInputs(input, playerConfigs)
+	}
 	return input
 }

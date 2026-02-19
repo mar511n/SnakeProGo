@@ -19,6 +19,7 @@ type MainMenu struct {
 	OnStartGame        func()
 	OnReplay           func()
 	OnControllerConfig func()
+	OnUnknownCommand   func(cmd string) bool
 }
 
 func NewMainMenu(startGameCallback func(), controllerConfigCallback func()) *MainMenu {
@@ -66,7 +67,7 @@ func (m *MainMenu) Update() error {
 	// Handle Enter
 	if repeatingKeyPressed(ebiten.KeyEnter) || repeatingKeyPressed(ebiten.KeyKPEnter) {
 		cmdStr := string(m.inputBuffer)
-		m.history = append(m.history, "> "+cmdStr)
+		m.AddHistory("> " + cmdStr)
 		m.processCommand(cmdStr)
 		m.inputBuffer = m.inputBuffer[:0]
 	}
@@ -133,7 +134,7 @@ func (m *MainMenu) processCommand(cmd string) {
 		}
 	case "addplayer", "apl":
 		if len(args) < 1 {
-			m.history = append(m.history, "Usage: addplayer <name>")
+			m.AddHistory("Usage: addplayer <name>")
 		} else {
 			name := args[0]
 			// Check if already added to list
@@ -146,16 +147,16 @@ func (m *MainMenu) processCommand(cmd string) {
 			}
 
 			if alreadyAdded {
-				m.history = append(m.history, fmt.Sprintf("Player %s is already in the game.", name))
+				m.AddHistory("Player %s is already in the game.", name)
 			} else {
 				m.players = append(m.players, name)
 				GetPlayerConfig(name) // Ensure config is loaded/created
-				m.history = append(m.history, fmt.Sprintf("Added player: %s", name))
+				m.AddHistory("Added player: %s", name)
 			}
 		}
 	case "showconfig", "sc":
 		if len(args) < 1 {
-			m.history = append(m.history, "Usage: showconfig [global/game/<username>]")
+			m.AddHistory("Usage: showconfig [global/game/<username>]")
 		} else {
 			target := args[0]
 			var cfg interface{}
@@ -172,26 +173,26 @@ func (m *MainMenu) processCommand(cmd string) {
 					cfg = PConfigs[target]
 				} else {
 					found = false
-					m.history = append(m.history, fmt.Sprintf("Config not found for: %s. (Is player added?)", target))
+					m.AddHistory("Config not found for: %s. (Is player added?)", target)
 				}
 			}
 
 			if found {
 				data, err := toml.Marshal(cfg)
 				if err != nil {
-					m.history = append(m.history, fmt.Sprintf("Error displaying config: %v", err))
+					m.AddHistory("Error displaying config: %v", err)
 				} else {
 					// Split lines so they show up nicely in history
 					lines := strings.Split(string(data), "\n")
-					m.history = append(m.history, fmt.Sprintf("--- Config: %s ---", target))
+					m.AddHistory("--- Config: %s ---", target)
 					m.history = append(m.history, lines...)
-					m.history = append(m.history, "----------------")
+					m.AddHistory("----------------")
 				}
 			}
 		}
 	case "removeplayer", "rpl":
 		if len(args) < 1 {
-			m.history = append(m.history, "Usage: removeplayer <name>")
+			m.AddHistory("Usage: removeplayer <name>")
 		} else {
 			name := args[0]
 			found := false
@@ -206,26 +207,33 @@ func (m *MainMenu) processCommand(cmd string) {
 			if found {
 				m.players = newPlayers
 				delete(PConfigs, name)
-				m.history = append(m.history, fmt.Sprintf("Removed player: %s", name))
+				m.AddHistory("Removed player: %s", name)
 			} else {
-				m.history = append(m.history, fmt.Sprintf("Player not found: %s", name))
+				m.AddHistory("Player not found: %s", name)
 			}
 		}
 	case "listplayers", "lpl":
 		if len(m.players) == 0 {
-			m.history = append(m.history, "No players joined.")
+			m.AddHistory("No players joined.")
 		} else {
-			m.history = append(m.history, "Current players: "+strings.Join(m.players, ", "))
+			m.AddHistory("Current players: " + strings.Join(m.players, ", "))
 		}
 	case "startgame", "start":
-		m.history = append(m.history, "Starting game...")
+		m.AddHistory("Starting game...")
 		if m.OnStartGame != nil {
 			m.OnStartGame()
 		}
 	case "quit", "exit", "q":
-		m.history = append(m.history, "Quitting...")
+		m.AddHistory("Quitting...")
 		os.Exit(0)
 	default:
-		m.history = append(m.history, fmt.Sprintf("Unknown command: %s", command))
+		if m.OnUnknownCommand != nil {
+			handled := m.OnUnknownCommand(command)
+			if handled {
+				return
+			} else {
+				m.AddHistory("Unknown command: %s", command)
+			}
+		}
 	}
 }
