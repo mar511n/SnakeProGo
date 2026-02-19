@@ -83,10 +83,7 @@ func (s *BaseSnake) UpdateMovement(state *GameState, speed_multiplier float64) {
 			s.Facing = s.NextFacing
 		}
 
-		new_head := Vec2i{
-			X: s.Body.Tiles[0].X + s.Facing.X,
-			Y: s.Body.Tiles[0].Y + s.Facing.Y,
-		}
+		new_head := s.Body.Tiles[0].Add(s.Facing).MakeP()
 
 		if s.Fett > 0 {
 			s.Fett--
@@ -319,17 +316,19 @@ func (s *PlayerSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state 
 		s.HeldItem = o.ItemType
 		o.IsConsumed = true
 	case *BulletEntity:
-		ti := -1
-		for i, t := range s.Body.Tiles {
-			if tile.Equals(t) {
-				ti = i
-				break
+		if o.OwnerID != s.ID {
+			ti := -1
+			for i, t := range s.Body.Tiles {
+				if tile.Equals(t) {
+					ti = i
+					break
+				}
 			}
-		}
-		if ti != -1 {
-			s.RemoveTiles(len(s.Body.Tiles)-ti, fmt.Sprintf("shot by player %d", o.OwnerID))
-		} else {
-			LogWarning("BulletEntity collided with snake %d at tile %v but no matching body tile found", s.ID, tile)
+			if ti != -1 {
+				s.RemoveTiles(len(s.Body.Tiles)-ti, fmt.Sprintf("shot by player %d", o.OwnerID))
+			} else {
+				LogWarning("BulletEntity collided with snake %d at tile %v but no matching body tile found", s.ID, tile)
+			}
 		}
 	default:
 		LogInfo("Unhandled collision at %v with object of type %v", tile, other_owner)

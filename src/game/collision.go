@@ -35,11 +35,14 @@ type CollisionTiles struct {
 	Tiles []Vec2i
 }
 
-func NewCollisionRectangle(p0 Vec2i, width, height int) *CollisionTiles {
+func NewCollisionRectangle(p0 Vec2i, width, height int, periodic bool) *CollisionTiles {
 	tiles := make([]Vec2i, width*height)
 	for x := 0; x < width; x++ {
 		for y := 0; y < height; y++ {
-			tiles[y*width+x] = Vec2i{X: p0.X + int16(x), Y: p0.Y + int16(y)}
+			tiles[y*width+x] = p0.Add(Vec2i{int16(x), int16(y)})
+			if periodic {
+				tiles[y*width+x] = tiles[y*width+x].MakeP()
+			}
 		}
 	}
 	return &CollisionTiles{Tiles: tiles}
@@ -71,7 +74,7 @@ func (c *CollisionTiles) IsColliding(other CollisionObject) (bool, Vec2i) {
 type CollisionMap struct {
 	UseBounds     bool
 	P0            Vec2i
-	Width, Height int
+	Width, Height int16
 	Occupied      [][]bool
 }
 

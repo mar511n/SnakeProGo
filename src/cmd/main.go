@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -57,7 +56,7 @@ func (g *Game) Update() error {
 			}
 		}
 		if anythingpressed {
-			g.menu.AddHistory(fmt.Sprintf("Pressed buttons: %v", pressedBtns))
+			g.menu.AddHistory("Pressed buttons: %v", pressedBtns)
 			game.LogInfo("Pressed buttons: %v", pressedBtns)
 		}
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {

@@ -28,8 +28,8 @@ func (m *MapData) BuildCache() {
 	m.Collider = &CollisionMap{
 		UseBounds: true,
 		P0:        Vec2i{X: 0, Y: 0},
-		Width:     len(m.Tiles),
-		Height:    len(m.Tiles[0]),
+		Width:     int16(len(m.Tiles)),
+		Height:    int16(len(m.Tiles[0])),
 		Occupied:  make([][]bool, len(m.Tiles)),
 	}
 	for x := range m.Tiles {

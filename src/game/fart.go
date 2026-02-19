@@ -47,8 +47,9 @@ func NewFart(ownerID int, center Vec2i) *FartEntity {
 			ID:   GetUniqueID(),
 			Type: EntityFartCloud,
 			Collider: NewCollisionRectangle(
-				Vec2i{X: center.X - int16(GPConfig.FartSize), Y: center.Y - int16(GPConfig.FartSize)},
+				center.Sub(Vec2i{int16(GPConfig.FartSize), int16(GPConfig.FartSize)}).MakeP(),
 				1+2*GPConfig.FartSize, 1+2*GPConfig.FartSize,
+				true,
 			),
 			OwnerID:  ownerID,
 			LifeTime: int(float64(GConfig.TPS) * GPConfig.FartDuration),

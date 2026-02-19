@@ -12,9 +12,53 @@ var (
 	DirRight = Vec2i{1, 0}
 )
 
+var (
+	Periodic_Is_Initialized = false
+	Periodic_P0             = Vec2i{0, 0}
+	Periodic_W              = int16(100)
+	Periodic_H              = int16(100)
+)
+
+func InitializePeriodicBoundary(p0 Vec2i, width, height int16) {
+	if Periodic_Is_Initialized && (Periodic_P0 != p0 || Periodic_W != width || Periodic_H != height) {
+		LogError("Periodic boundary already initialized")
+	}
+	Periodic_P0 = p0
+	Periodic_W = width
+	Periodic_H = height
+	Periodic_Is_Initialized = true
+}
+
 // Integer vector math
 type Vec2i struct {
 	X, Y int16
+}
+
+func (v Vec2i) MakeP() Vec2i {
+	return Vec2i{
+		X: (((v.X-Periodic_P0.X)%Periodic_W)+Periodic_W)%Periodic_W + Periodic_P0.X,
+		Y: (((v.Y-Periodic_P0.Y)%Periodic_H)+Periodic_H)%Periodic_H + Periodic_P0.Y,
+	}
+}
+
+func (v Vec2i) DiffP(other Vec2i) Vec2i {
+	// use minimum image convention to find shortest vector between two points on a periodic grid
+	dx := (v.X - other.X)
+	dy := (v.Y - other.Y)
+
+	dx = ((dx + Periodic_W/2) % Periodic_W) - Periodic_W/2
+	// Handle negative modulo result which can happen in Go
+	if dx < -Periodic_W/2 {
+		dx += Periodic_W
+	}
+
+	dy = ((dy + Periodic_H/2) % Periodic_H) - Periodic_H/2
+	// Handle negative modulo result
+	if dy < -Periodic_H/2 {
+		dy += Periodic_H
+	}
+
+	return Vec2i{X: dx, Y: dy}
 }
 
 func (v Vec2i) Add(other Vec2i) Vec2i {

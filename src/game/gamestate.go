@@ -213,12 +213,12 @@ func (s *GameState) CheckPointCollision(tile Vec2i, layer CollisionMask) bool {
 }
 
 func (s *GameState) SpawnItem() *Item {
-	pos := RandomPosition(s.Map.Collider.Width, s.Map.Collider.Height).Add(s.Map.Collider.P0)
+	pos := RandomPosition(int(s.Map.Collider.Width), int(s.Map.Collider.Height)).Add(s.Map.Collider.P0)
 	for i := 0; i < 100; i++ {
 		if !s.CheckPointCollision(pos, NewCollisionMaskAllLayers()) {
 			break
 		}
-		pos = RandomPosition(s.Map.Collider.Width, s.Map.Collider.Height).Add(s.Map.Collider.P0)
+		pos = RandomPosition(int(s.Map.Collider.Width), int(s.Map.Collider.Height)).Add(s.Map.Collider.P0)
 	}
 	return &Item{
 		EntityBase: &EntityBase{
@@ -234,12 +234,12 @@ func (s *GameState) SpawnItem() *Item {
 }
 
 func (s *GameState) SpawnApple() *Apple {
-	pos := RandomPosition(s.Map.Collider.Width, s.Map.Collider.Height).Add(s.Map.Collider.P0)
+	pos := RandomPosition(int(s.Map.Collider.Width), int(s.Map.Collider.Height)).Add(s.Map.Collider.P0)
 	for i := 0; i < 100; i++ {
 		if !s.CheckPointCollision(pos, NewCollisionMaskAllLayers()) {
 			break
 		}
-		pos = RandomPosition(s.Map.Collider.Width, s.Map.Collider.Height).Add(s.Map.Collider.P0)
+		pos = RandomPosition(int(s.Map.Collider.Width), int(s.Map.Collider.Height)).Add(s.Map.Collider.P0)
 	}
 	return &Apple{
 		EntityBase: &EntityBase{

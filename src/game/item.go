@@ -138,12 +138,12 @@ func InitializeItems() {
 			state.Events = append(state.Events, NewSoundEvent("Revive"))
 			consumed = true
 		} else {
-			pos := RandomPosition(state.Map.Collider.Width, state.Map.Collider.Height).Add(state.Map.Collider.P0)
+			pos := RandomPosition(int(state.Map.Collider.Width), int(state.Map.Collider.Height)).Add(state.Map.Collider.P0)
 			for i := 0; i < 100; i++ {
 				if !state.CheckPointCollision(pos, NewCollisionMaskAllLayers()) {
 					break
 				}
-				pos = RandomPosition(state.Map.Collider.Width, state.Map.Collider.Height).Add(state.Map.Collider.P0)
+				pos = RandomPosition(int(state.Map.Collider.Width), int(state.Map.Collider.Height)).Add(state.Map.Collider.P0)
 			}
 			player.Body.Tiles = []Vec2i{pos}
 			player.Fett = GPConfig.SnakeSurvivalLength - 1
@@ -162,7 +162,7 @@ func InitializeItems() {
 		state.PlaySoundEffect("Shooting")
 		state.Entities = append(state.Entities, NewBullet(
 			pl.ID,
-			pl.Body.Tiles[0].Add(pl.Facing),
+			pl.Body.Tiles[0].Add(pl.Facing).MakeP(),
 			pl.Facing,
 		))
 		consumed = true

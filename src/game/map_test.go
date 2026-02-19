@@ -33,10 +33,10 @@ func TestNewMapFromString(t *testing.T) {
 	expectedHeight := 2
 
 	// Check Collider dimensions (built by BuildCache)
-	if m.Collider.Width != expectedWidth {
+	if int(m.Collider.Width) != expectedWidth {
 		t.Errorf("Expected Collider Width %d, got %d", expectedWidth, m.Collider.Width)
 	}
-	if m.Collider.Height != expectedHeight {
+	if int(m.Collider.Height) != expectedHeight {
 		t.Errorf("Expected Collider Height %d, got %d", expectedHeight, m.Collider.Height)
 	}
 

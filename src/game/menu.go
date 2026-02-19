@@ -122,7 +122,7 @@ func (m *MainMenu) processCommand(cmd string) {
 		for i, id := range ids {
 			sdlids[i] = ebiten.GamepadSDLID(id)
 		}
-		m.AddHistory(fmt.Sprintf("Detected controllers: %v", sdlids))
+		m.AddHistory("Detected controllers: %v", sdlids)
 		if m.OnControllerConfig != nil {
 			m.OnControllerConfig()
 		}

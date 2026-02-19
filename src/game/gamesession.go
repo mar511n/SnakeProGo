@@ -149,6 +149,7 @@ func NewGameSession(gameoverCallback func(winnerIDs []int, hist *HistoryData)) *
 		return nil
 	}
 	mapData := NewMapFromString(string(data))
+	InitializePeriodicBoundary(mapData.Collider.P0, mapData.Collider.Width, mapData.Collider.Height)
 	players := make(map[int]*PlayerSnake)
 	idx := 0
 	for pname := range PConfigs {

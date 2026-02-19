@@ -17,7 +17,7 @@ func (b *BulletEntity) Update(state *GameState, hist *HistoryData) {
 		b.ticks_since_update++
 		if b.ticks_since_update >= b.update_period {
 			b.ticks_since_update = 0
-			b.pos = b.pos.Add(b.Dir)
+			b.pos = b.pos.Add(b.Dir).MakeP()
 			b.Trail = append(b.Trail, b.pos)
 			b.Collider.Tiles = []Vec2i{b.pos}
 		}

@@ -228,3 +228,59 @@ func TestVec2f_ToVec2i(t *testing.T) {
 		t.Errorf("Vec2f.ToVec2i() = %v, want %v", got, expected)
 	}
 }
+
+func TestVec2i_Periodic(t *testing.T) {
+	// Setup periodic boundary
+	Periodic_P0 = Vec2i{0, 0}
+	Periodic_W = 10
+	Periodic_H = 10
+	Periodic_Is_Initialized = true
+
+	t.Run("MakeP", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			v        Vec2i
+			expected Vec2i
+		}{
+			{"inside", Vec2i{5, 5}, Vec2i{5, 5}},
+			{"overflow positive", Vec2i{12, 12}, Vec2i{2, 2}},
+			{"overflow negative", Vec2i{-2, -2}, Vec2i{8, 8}},
+			{"large overflow positive", Vec2i{22, 22}, Vec2i{2, 2}},
+			{"large overflow negative", Vec2i{-12, -12}, Vec2i{8, 8}},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got := tt.v.MakeP()
+				if got != tt.expected {
+					t.Errorf("%v.MakeP() = %v; expected %v", tt.v, got, tt.expected)
+				}
+			})
+		}
+	})
+
+	t.Run("DiffP", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			v, other Vec2i
+			expected Vec2i
+		}{
+			{"simple diff", Vec2i{5, 5}, Vec2i{2, 2}, Vec2i{3, 3}},
+			{"wrap around right", Vec2i{2, 2}, Vec2i{8, 8}, Vec2i{4, 4}},
+			{"wrap around left", Vec2i{8, 8}, Vec2i{2, 2}, Vec2i{-4, -4}},
+			{"wrap around top", Vec2i{5, 2}, Vec2i{5, 8}, Vec2i{0, 4}},
+			{"wrap around bottom", Vec2i{5, 8}, Vec2i{5, 2}, Vec2i{0, -4}},
+			{"large diff positive", Vec2i{25, 25}, Vec2i{2, 2}, Vec2i{3, 3}},
+			{"large diff negative", Vec2i{2, 2}, Vec2i{25, 25}, Vec2i{-3, -3}},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got := tt.v.DiffP(tt.other)
+				if got != tt.expected {
+					t.Errorf("%v.DiffP(%v) = %v; expected %v", tt.v, tt.other, got, tt.expected)
+				}
+			})
+		}
+	})
+}
