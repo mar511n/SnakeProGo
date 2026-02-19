@@ -18,47 +18,9 @@ A feature-packed Snake game implementation in Go using the [Ebitengine](https://
 
 - Go 1.24 or higher
 - C Compiler (gcc/clang) - required by Ebitengine for low-level graphics API bindings.
+- [Ollama](https://ollama.com/) - Required for generating fancy replay names via LLM.
+- [FFmpeg](https://ffmpeg.org/) - Required for saving replays to video files.
 
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd SnakeProGo
-   ```
-
-2. Download dependencies:
-   ```bash
-   go mod tidy
-   ```
-
-## Running the Game
-
-To start the game from the source:
-
-```bash
-go run src/cmd/main.go
-```
-
-## Configuration
-
-The game relies on a configuration system defined in `src/game/config.go`. It supports loading settings from a TOML file, allowing you to tweak:
-
-- **Display**: Screen width, height, fullscreen mode, VSync.
-- **Audio**: Master, Music, and SFX volume levels.
-- **Gameplay**:
-  - Snake speed and starting length.
-  - Apple count and nutrition value.
-  - Item spawn rates (Speed, Revive, Shooting).
-  - Invincibility and Rewind mechanics.
-
-## LLM Integration
-
-The project includes an LLM-powered utility for generating descriptive filenames. You can verify this component specifically by running:
-
-```bash
-go run src/cmd/llm.go
-```
 
 ## Project Structure
 
