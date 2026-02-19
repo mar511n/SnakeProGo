@@ -41,7 +41,7 @@ func NewDefaultRenderer(rm *ResourceManager) *DefaultRenderer {
 		screenheight:     GConfig.ScreenHeight,
 		displayTPS:       GConfig.DisplayTPS,
 		displayFPS:       GConfig.DisplayFPS,
-		drawperiodic:     false,
+		drawperiodic:     true,
 	}
 }
 

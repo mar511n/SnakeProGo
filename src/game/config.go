@@ -58,6 +58,7 @@ type GameplayConfig struct {
 	FartDuration                float64 `toml:"fart_duration"`                 // duration of fart item in seconds
 	FartSize                    int     `toml:"fart_size"`                     // size of fart area in segments
 	FartDamagePerSecond         float64 `toml:"fart_damage_per_second"`        // lost segments per second inside fart area
+	ItemSwitchbackChance        float64 `toml:"item_switchback_chance"`        // chance for switchback item to spawn
 }
 
 type PlayerConfig struct {
@@ -161,16 +162,16 @@ func loadGameplayConfig() {
 			MapPath:                     "maps/default.txt",
 			StartInvincibilityDuration:  3.0,
 			AppleCount:                  15,
-			AppleNutrition:              1,
+			AppleNutrition:              2,
 			AppleRotTime:                60,
 			GhostAppleDamage:            1,
 			ItemCount:                   2,
 			SnakeSurvivalLength:         2,
 			ItemSpeedChance:             1.0,
-			SpeedMultiplier:             3.5,
-			SpeedDuration:               3.0,
+			SpeedMultiplier:             4.0,
+			SpeedDuration:               1.5,
 			ItemReviveChance:            1.0,
-			ReviveIsRewind:              true,
+			ReviveIsRewind:              false,
 			RewindTime:                  2.0,
 			ReviveDuration:              1.5,
 			ReviveInvincibilityDuration: 1.0,
@@ -184,7 +185,8 @@ func loadGameplayConfig() {
 			ItemFartChance:              1.0,
 			FartDuration:                10.0,
 			FartSize:                    3,
-			FartDamagePerSecond:         2.0,
+			FartDamagePerSecond:         5.0,
+			ItemSwitchbackChance:        1.0,
 		}
 
 		saveConfig(path, GPConfig)

@@ -1,5 +1,7 @@
 package game
 
+import "slices"
+
 type ItemType int
 
 const (
@@ -10,6 +12,7 @@ const (
 	ItemBomb
 	ItemBot
 	ItemFart
+	ItemSwitchback
 )
 
 func (it ItemType) FileName() string {
@@ -28,6 +31,8 @@ func (it ItemType) FileName() string {
 		return "bot"
 	case ItemFart:
 		return "fart"
+	case ItemSwitchback:
+		return "switchback"
 	default:
 		return "unknown"
 	}
@@ -49,6 +54,8 @@ func (it ItemType) String() string {
 		return "Bot"
 	case ItemFart:
 		return "Fart"
+	case ItemSwitchback:
+		return "Switchback"
 	default:
 		return "Unknown"
 	}
@@ -111,6 +118,7 @@ func InitializeItems() {
 	ItemChances[ItemRevive] = GPConfig.ItemReviveChance
 	ItemChances[ItemShooting] = GPConfig.ItemShootingChance
 	ItemChances[ItemFart] = GPConfig.ItemFartChance
+	ItemChances[ItemSwitchback] = GPConfig.ItemSwitchbackChance
 	//TODO: This is where we would register all item behaviors.
 
 	ItemRegistry[ItemSpeed] = func(userID int, state *GameState, hist *HistoryData) bool {
@@ -180,6 +188,20 @@ func InitializeItems() {
 			pl.ID,
 			pl.Body.Tiles[len(pl.Body.Tiles)-1],
 		))
+		consumed = true
+		return
+	}
+	ItemRegistry[ItemSwitchback] = func(userID int, state *GameState, hist *HistoryData) (consumed bool) {
+		consumed = false
+		pl, ok := state.Players[userID]
+		if !ok {
+			LogWarning("Player %d not found while trying to use Switchback Item", userID)
+			return
+		}
+		state.PlaySoundEffect("Switchback")
+		slices.Reverse(pl.Body.Tiles)
+		pl.Facing = pl.Body.Tiles[0].DiffP(pl.Body.Tiles[1])
+		pl.NextFacing = pl.Facing
 		consumed = true
 		return
 	}

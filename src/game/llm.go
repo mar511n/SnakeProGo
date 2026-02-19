@@ -94,7 +94,7 @@ func GenerateFilenameForReplay(filename string) string {
 	if !strings.HasSuffix(newname, ".mp4") {
 		newname += ".mp4"
 	}
-	if strings.ContainsAny(newname, `\/:*?"<>|`) || len(newname) < 6 || len(newname) > 50 {
+	if strings.ContainsAny(newname, `\/:*?"<>|`) || len(newname) < 6 || len(newname) > 100 {
 		LogError("LLM generated filename is invalid: %s", newname)
 		return simple_filename
 	}
