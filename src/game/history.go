@@ -15,8 +15,8 @@ type HistoryData struct {
 }
 
 func (h *HistoryData) RenderToVideo(filename string, rm *ResourceManager) error {
-	video := make([]*ebiten.Image, len(h.VarData))
-	frameIndices := make([]int, len(h.VarData))
+	//video := make([]*ebiten.Image, len(h.VarData))
+	//frameIndices := make([]int, len(h.VarData))
 
 	state := &GameState{}
 	err := state.UnmarshalAllObjects(h.InitData)
@@ -29,18 +29,25 @@ func (h *HistoryData) RenderToVideo(filename string, rm *ResourceManager) error 
 	renderer.displayFPS = false
 	renderer.displayTPS = false
 
-	for i, data := range h.VarData {
-		video[i] = ebiten.NewImage(GConfig.ScreenWidth, GConfig.ScreenHeight)
-		frameIndices[i] = int(h.Ticks[i])
-		err := state.UnmarshalMutableObjects(data)
-		state.Tick = h.Ticks[i]
-		if err != nil {
-			return err
-		}
-		renderer.Render(state, video[i])
-	}
+	video := make(chan *ebiten.Image, len(h.VarData))
+	frameIndices := make(chan int, len(h.VarData))
 
-	return RenderVideo(video, frameIndices, GConfig.TPS, filename)
+	go func() {
+		for i, data := range h.VarData {
+			img := ebiten.NewImage(GConfig.ScreenWidth, GConfig.ScreenHeight)
+			err := state.UnmarshalMutableObjects(data)
+			state.Tick = h.Ticks[i]
+			if err != nil {
+				LogError("Failed to unmarshal game state for video rendering at tick %d: %v", state.Tick, err)
+			} else {
+				renderer.Render(state, img)
+			}
+			video <- img
+			frameIndices <- int(h.Ticks[i])
+		}
+	}()
+
+	return RenderVideo(len(h.VarData), GConfig.ScreenWidth, GConfig.ScreenHeight, video, frameIndices, GConfig.TPS, filename)
 }
 
 func (h *HistoryData) ReconstructState(tick int, state *GameState) error {

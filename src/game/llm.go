@@ -17,6 +17,12 @@ var (
 )
 
 func InitLLM() {
+	if !GConfig.UseLLM {
+		LogInfo("LLM usage is disabled in config.")
+		return
+	} else {
+		LogInfo("Initializing ollama model qwen3:0.6b...")
+	}
 	llm, err := ollama.New(ollama.WithModel("qwen3:0.6b"))
 	if err != nil {
 		LogError("Failed to initialize LLM: %v", err)
@@ -57,7 +63,9 @@ func GenerateFilenameForReplay(filename string) string {
 		simple_filename += ".mp4"
 	}
 	if LLM == nil {
-		LogError("LLM not initialized.")
+		if GConfig.UseLLM {
+			LogError("LLM not initialized. Make sure ollama is installed with the model qwen3:0.6b")
+		}
 		return simple_filename
 	}
 

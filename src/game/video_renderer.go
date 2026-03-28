@@ -12,17 +12,7 @@ import (
 // frameIndices: A slice of frame indices corresponding to each image.
 // fps: The frames per second for the output video.
 // filename: The name of the output video file.
-func RenderVideo(images []*ebiten.Image, frameIndices []int, fps int, filename string) error {
-	if len(images) == 0 {
-		return fmt.Errorf("no images provided")
-	}
-	if len(images) != len(frameIndices) {
-		return fmt.Errorf("number of images (%d) does not match number of frame indices (%d)", len(images), len(frameIndices))
-	}
-
-	// Assuming all images have the same dimensions
-	width, height := images[0].Bounds().Dx(), images[0].Bounds().Dy()
-
+func RenderVideo(numImages, width, height int, images chan *ebiten.Image, frameIndices chan int, fps int, filename string) error {
 	// Check if ffmpeg is installed
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		return fmt.Errorf("ffmpeg not found: %w", err)
@@ -69,16 +59,20 @@ func RenderVideo(images []*ebiten.Image, frameIndices []int, fps int, filename s
 		return nil
 	}
 
-	for i := 0; i < len(images); i++ {
-		img := images[i]
+	lastIndex := -1
+	currIndex := 0
+	var img *ebiten.Image
+	for i := 0; i < numImages; i++ {
+		img = <-images
+		currIndex = <-frameIndices
 		if img == nil {
 			continue
 		}
 
-		// Calculate duration for this image in frames
+		// Calculate number of frames to write for this image
 		duration := 0
-		if i < len(images)-1 {
-			duration = frameIndices[i+1] - frameIndices[i]
+		if i < numImages-1 {
+			duration = currIndex - lastIndex
 		} else {
 			// Last image shown for 10 frames
 			duration = 10
@@ -100,6 +94,8 @@ func RenderVideo(images []*ebiten.Image, frameIndices []int, fps int, filename s
 				return fmt.Errorf("failed to write frame to ffmpeg: %w", err)
 			}
 		}
+
+		lastIndex = currIndex
 	}
 
 	return cleanup()

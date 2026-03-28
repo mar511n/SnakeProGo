@@ -98,6 +98,7 @@ func (sc *SmartController) StartServer(port int) {
 
 func (sc *SmartController) handleClient(conn net.Conn) {
 	defer conn.Close()
+	LogInfo("handling client")
 
 	if sc.OnNewConnection == nil {
 		return

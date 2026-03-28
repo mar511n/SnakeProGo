@@ -136,25 +136,29 @@ func main() {
 	ebitengame.menu.OnUnknownCommand = func(cmd string) bool {
 		if game.PConfigs != nil {
 			game.LogInfo("Received unknown command '%s', checking if it matches any player config names for smart controller assignment...", cmd)
-			game.LogInfo("Registered player configs: %v", game.PConfigs)
-			for name, cfg := range game.PConfigs {
-				if cmd == cfg.Name {
-					if game.GlobalSmartController != nil {
-						game.LogInfo("Assigning smart controller to player '%s'", name)
-						game.GlobalSmartController.ChanAssignPlayer <- name
-						ebitengame.menu.AddHistory("Assigned smart controller to player '%s'", name)
-						return true
+			/*
+				game.LogInfo("Registered player configs: %v", game.PConfigs)
+				for name, cfg := range game.PConfigs {
+					if cmd == cfg.Name {
+						if game.GlobalSmartController != nil {
+							game.LogInfo("Assigning smart controller to player '%s'", name)
+							game.GlobalSmartController.ChanAssignPlayer <- name
+							ebitengame.menu.AddHistory("Assigned smart controller to player '%s'", name)
+							return true
+						}
 					}
 				}
-			}
+			*/
 		}
 		return false
 	}
-	game.InitSmartController(func() {
-		if ebitengame.mode == ModeControllerConfig {
-			ebitengame.menu.AddHistory("New smartphone controller connected. Choose a player for it. (Enter player name as command)")
-		}
-	})
+	/*
+		game.InitSmartController(func() {
+			if ebitengame.mode == ModeControllerConfig {
+				ebitengame.menu.AddHistory("New smartphone controller connected. Choose a player for it. (Enter player name as command)")
+			}
+		})
+	*/
 	ebiten.SetWindowIcon(ebitengame.resources.Icons)
 
 	game.InitSound(ebitengame.resources)

@@ -26,6 +26,7 @@ type GlobalConfig struct {
 	AudioSampleRate     int     `toml:"audio_sample_rate"`     // sample rate for audio playback
 	MaxHistorySize      int     `toml:"max_history_size"`      // maximum total size in bytes for stored game states in history
 	SmartControllerPort int     `toml:"smart_controller_port"` // port for smart controller server
+	UseLLM              bool    `toml:"use_llm"`               // whether to use LLM
 }
 
 type GameplayConfig struct {
@@ -126,6 +127,7 @@ func loadGlobalConfig() {
 			AudioSampleRate:     48000,
 			MaxHistorySize:      1000 * 1024 * 1024, // 1 GB
 			SmartControllerPort: 8080,
+			UseLLM:              false,
 		}
 
 		saveConfig(path, GConfig)
