@@ -8,7 +8,6 @@ The workflow (`.github/workflows/build-release.yml`) is triggered when you push 
 
 1. **Builds** the game binary for all platforms:
    - Linux (x86_64)
-   - macOS Intel (x86_64)
    - macOS ARM (Apple Silicon)
    - Windows (x86_64)
 
@@ -45,7 +44,6 @@ Go to your repository → **Actions** tab to see:
 
 For release `v1.0.0`, GitHub will create:
 - `SnakeProGo-linux-amd64.zip`
-- `SnakeProGo-darwin-amd64.zip`
 - `SnakeProGo-darwin-arm64.zip` 
 - `SnakeProGo-windows-amd64.zip`
 
@@ -139,13 +137,3 @@ Example:
 ```
 
 Then update the `release` job `files:` to include it.
-
-## Installer Integration
-
-After releases are published, users can download and run:
-
-```bash
-./SnakeProInstaller -dir ~/snakeprogo -version v1.0.0
-```
-
-The installer will pull binaries from your GitHub releases.
