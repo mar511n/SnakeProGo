@@ -3,7 +3,12 @@
 A feature-packed Snake game implementation in Go using the [Ebitengine](https://ebitengine.org/) 2D game library.
 
 ## Installation
-download the installer script and run it.
+Download the latest installer for your platform:
+- [Linux](https://github.com/mar511n/SnakeProGo/releases/latest/download/SnakeProInstaller-linux-amd64.zip)
+- [macOS](https://github.com/mar511n/SnakeProGo/releases/latest/download/SnakeProInstaller-darwin-arm64.zip)
+- [Windows](https://github.com/mar511n/SnakeProGo/releases/latest/download/SnakeProInstaller-windows-amd64.zip)
+
+Extract and run the installer to set up the game on your system.
 
 ## Features
 
