@@ -94,6 +94,12 @@ jobs:
           mkdir -p release
           find artifacts -name "*.zip" -exec mv {} release/ \;
       
+      - name: Package game assets
+        run: |
+          cd res
+          zip -r ../release/assets.zip *
+          cd ..
+      
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
