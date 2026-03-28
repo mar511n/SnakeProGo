@@ -94,12 +94,14 @@ jobs:
           mkdir -p release
           find artifacts -name "*.zip" -exec mv {} release/ \;
       
-      - name: Package game assets
+      - name: Copy assets into release 
         run: |
-          cd res
-          zip -r ../release/assets.zip *
-          cd ..
-      
+          if [ -f "assets.zip" ]; then
+            cp assets.zip release/
+          else
+            echo "assets.zip not found in repo root. Skipping."
+          fi
+          
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
