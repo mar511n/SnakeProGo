@@ -1,10 +1,10 @@
 # TODO list
-- add bot snake
 - create installer script
 - make UI menu
-- implement statistics
+	- make accessible controller/key rebinding
+	- implement statistics
+- add bot snake
 - use llm to generate reports
-- make accessible controller/key rebinding
 - add player bots with neat AI
 
 - add audio to replay (hard)
