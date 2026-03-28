@@ -17,18 +17,22 @@ jobs:
             goos: linux
             goarch: amd64
             artifact: SnakeProGo
+            installer_artifact: SnakeProInstaller
             
           - os: macOS (ARM)
             runs-on: macos-14
             goos: darwin
             goarch: arm64
             artifact: SnakeProGo
+            installer_artifact: SnakeProInstaller
             
           - os: Windows
             runs-on: windows-latest
             goos: windows
             goarch: amd64
             artifact: SnakeProGo.exe
+            installer_artifact: SnakeProInstaller.exe
+
 
     steps:
       - uses: actions/checkout@v4
@@ -49,30 +53,35 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: go build -o ${{ matrix.artifact }} cmd/main.go
+        run: |
+          go build -o ${{ matrix.artifact }} cmd/main.go
+          go build -o ${{ matrix.installer_artifact }} cmd/installer.go
       
       - name: Create artifact directory
         run: |
           mkdir -p artifacts
           mv src/${{ matrix.artifact }} artifacts/
+          mv src/${{ matrix.installer_artifact }} artifacts/
       
       - name: Create zip archive (Linux/macOS)
         if: matrix.goos != 'windows'
         run: |
           cd artifacts
           zip -r SnakeProGo-${{ matrix.goos }}-${{ matrix.goarch }}.zip SnakeProGo
+          zip -r SnakeProInstaller-${{ matrix.goos }}-${{ matrix.goarch }}.zip SnakeProInstaller
       
       - name: Create zip archive (Windows)
         if: matrix.goos == 'windows'
         run: |
           cd artifacts
           powershell Compress-Archive -Path SnakeProGo.exe -DestinationPath SnakeProGo-windows-amd64.zip
+          powershell Compress-Archive -Path SnakeProInstaller.exe -DestinationPath SnakeProInstaller-windows-amd64.zip
       
-      - name: Upload artifacts
+      - name: Upload binaries artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SnakeProGo-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: artifacts/SnakeProGo-${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: artifacts/*.zip
 
   release:
     name: Create Release

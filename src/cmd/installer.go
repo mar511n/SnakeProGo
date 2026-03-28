@@ -15,7 +15,7 @@ import (
 const (
 	GitHubRepoOwner = "mar511n" // Change to your GitHub username
 	GitHubRepoName  = "SnakeProGo"
-	GitHubReleases  = "https://github.com/" + GitHubRepoOwner + "/" + GitHubRepoName + "/releases/download"
+	GitHubReleases  = "https://github.com/" + GitHubRepoOwner + "/" + GitHubRepoName + "/releases"
 )
 
 // DirectoryStructure defines the folders needed for SnakeProGo
@@ -44,12 +44,22 @@ func NewInstaller(installDir, version string) *Installer {
 // GetBinaryURL returns the appropriate GitHub release URL for the binary
 func (i *Installer) GetBinaryURL() string {
 	filename := fmt.Sprintf("SnakeProGo-%s-%s.zip", i.os, i.arch)
-	return fmt.Sprintf("%s/v%s/%s", GitHubReleases, i.version, filename)
+	if i.version == "latest" {
+		return fmt.Sprintf("%s/latest/download/%s", GitHubReleases, filename)
+	}
+	// If the user provided a specific version, strip the 'v' if they added it
+	// to normalize it, then add it back to match typical GitHub tags
+	version := strings.TrimPrefix(i.version, "v")
+	return fmt.Sprintf("%s/download/v%s/%s", GitHubReleases, version, filename)
 }
 
 // GetAssetsURL returns the URL to download game assets
 func (i *Installer) GetAssetsURL() string {
-	return fmt.Sprintf("%s/v%s/assets.zip", GitHubReleases, i.version)
+	if i.version == "latest" {
+		return fmt.Sprintf("%s/latest/download/assets.zip", GitHubReleases)
+	}
+	version := strings.TrimPrefix(i.version, "v")
+	return fmt.Sprintf("%s/download/v%s/assets.zip", GitHubReleases, version)
 }
 
 // CreateDirectories creates the required directory structure
@@ -176,7 +186,7 @@ func (i *Installer) InstallAssets() error {
 		return fmt.Errorf("failed to download assets: %w", err)
 	}
 
-	if err := i.UnzipFile(tempZip, filepath.Join(i.installDir, "res")); err != nil {
+	if err := i.UnzipFile(tempZip, i.installDir); err != nil {
 		return fmt.Errorf("failed to extract assets: %w", err)
 	}
 
