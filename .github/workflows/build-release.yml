@@ -19,7 +19,7 @@ jobs:
             artifact: SnakeProGo
             
           - os: macOS (Intel)
-            runs-on: macos-13
+            runs-on: macos-14
             goos: darwin
             goarch: amd64
             artifact: SnakeProGo
