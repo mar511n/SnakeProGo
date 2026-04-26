@@ -4,6 +4,27 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+type GuiElement interface {
+	Drawable
+	Updatable
+	SetContextID(id int)
+	GetContextID() int
+	SetNeighboringElement(dir GuiDirection, element GuiElement)
+	GetNeighboringElement(dir GuiDirection) (GuiElement, bool)
+	Bounds() *Rectf
+	OnFocusGained()
+	OnFocusLost()
+	OnSelect()
+	OnDeselect()
+	OnInput(dirAction GuiAction, selectAction GuiAction)
+}
+
+type Context interface {
+	Updatable
+	Drawable
+	StartContextSwitch(newContext Context, switchContext func(toContext Context)) error
+}
+
 type InputProcessor func(playerConfigs map[int]*PlayerConfig) *InputFrame
 
 type Renderer interface {
@@ -15,13 +36,21 @@ type InputHandler interface {
 	HandleInput(input string, state *GameState)
 }
 
-type Updatable interface {
+type UpdatableGameObj interface {
 	Update(state *GameState, hist *HistoryData)
+}
+
+type Updatable interface {
+	Update() error
+}
+
+type Drawable interface {
+	Draw(screen *ebiten.Image)
 }
 
 type Entity interface {
 	Collidable
-	Updatable
+	UpdatableGameObj
 	IsExpired() bool
 }
 

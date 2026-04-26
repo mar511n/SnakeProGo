@@ -10,6 +10,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
 var (
@@ -48,6 +49,7 @@ type ResourceManager struct {
 	Images map[string]map[string]*ebiten.Image // category -> name -> image
 	Sounds map[string][]SoundData              // name -> list of file paths for sound files
 	Icons  []image.Image                       // list of icons
+	Fonts  map[string]*text.GoTextFaceSource   // name -> font face
 }
 
 func (rm *ResourceManager) RandomSound(name string) (SoundData, bool) {
@@ -59,10 +61,11 @@ func (rm *ResourceManager) RandomSound(name string) (SoundData, bool) {
 	return soundList[randomIndex], true
 }
 
-func (rm *ResourceManager) LoadAssets(assetspath, images, sounds, icons string) {
+func (rm *ResourceManager) LoadAssets(assetspath, images, sounds, icons, fonts string) {
 	rm.Images = make(map[string]map[string]*ebiten.Image)
 	rm.Sounds = make(map[string][]SoundData)
 	rm.Icons = make([]image.Image, 0)
+	rm.Fonts = make(map[string]*text.GoTextFaceSource)
 
 	// Load Images
 	imagesPath := filepath.Join(assetspath, images)
@@ -101,8 +104,9 @@ func (rm *ResourceManager) LoadAssets(assetspath, images, sounds, icons string) 
 
 					name := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
 					rm.Images[category][name] = img
-					LogInfo("Loaded image '%s' in category '%s'", name, category)
+					//LogInfo("Loaded image '%s' in category '%s'", name, category)
 				}
+				LogInfo("Loaded image category '%s' with %d images", category, len(rm.Images[category]))
 			}
 		}
 	}
@@ -138,7 +142,7 @@ func (rm *ResourceManager) LoadAssets(assetspath, images, sounds, icons string) 
 					soundList = append(soundList, SoundDataFromFile(fullPath))
 				}
 				rm.Sounds[name] = soundList
-				LogInfo("Loaded sound '%s' with %d variations", name, len(soundList))
+				//LogInfo("Loaded sound '%s' with %d variations", name, len(soundList))
 			} else {
 				ext := strings.ToLower(filepath.Ext(entry.Name()))
 				if ext != ".wav" {
@@ -148,9 +152,10 @@ func (rm *ResourceManager) LoadAssets(assetspath, images, sounds, icons string) 
 				name := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
 				fullPath := filepath.Join(soundsPath, entry.Name())
 				rm.Sounds[name] = []SoundData{SoundDataFromFile(fullPath)}
-				LogInfo("Loaded sound '%s'", name)
+				//LogInfo("Loaded sound '%s'", name)
 			}
 		}
+		LogInfo("Loaded total of %d sounds", len(rm.Sounds))
 	}
 
 	// Load Icons
@@ -177,7 +182,43 @@ func (rm *ResourceManager) LoadAssets(assetspath, images, sounds, icons string) 
 			}
 
 			rm.Icons = append(rm.Icons, img)
-			LogInfo("Loaded icon '%s'", entry.Name())
+			//LogInfo("Loaded icon '%s'", entry.Name())
 		}
+		LogInfo("Loaded total of %d icons", len(rm.Icons))
+	}
+
+	// Load Fonts
+	fontsPath := filepath.Join(assetspath, fonts)
+	fontEntries, err := os.ReadDir(fontsPath)
+	if err != nil {
+		LogError("Error reading fonts directory '%s': %v", fontsPath, err)
+	} else {
+		for _, entry := range fontEntries {
+			if entry.IsDir() {
+				continue
+			}
+
+			ext := strings.ToLower(filepath.Ext(entry.Name()))
+			if ext != ".ttf" && ext != ".otf" {
+				continue
+			}
+
+			fullPath := filepath.Join(fontsPath, entry.Name())
+			file, err := os.Open(fullPath)
+			if err != nil {
+				LogError("Error opening font file '%s': %v", fullPath, err)
+				continue
+			}
+			fontFace, err := text.NewGoTextFaceSource(file)
+			if err != nil {
+				LogError("Error loading font '%s': %v", fullPath, err)
+				continue
+			}
+
+			name := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
+			rm.Fonts[name] = fontFace
+			//LogInfo("Loaded font '%s'", name)
+		}
+		LogInfo("Loaded total of %d fonts", len(rm.Fonts))
 	}
 }

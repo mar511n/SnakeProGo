@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/pelletier/go-toml/v2"
@@ -27,6 +28,10 @@ type GlobalConfig struct {
 	MaxHistorySize      int     `toml:"max_history_size"`      // maximum total size in bytes for stored game states in history
 	SmartControllerPort int     `toml:"smart_controller_port"` // port for smart controller server
 	UseLLM              bool    `toml:"use_llm"`               // whether to use LLM
+}
+
+func (c *GlobalConfig) AspectRatio() float64 {
+	return float64(c.ScreenHeight) / float64(c.ScreenWidth)
 }
 
 type GameplayConfig struct {
@@ -90,6 +95,15 @@ func LoadConfigs() {
 	ConfigLoaded = true
 	processGlobalConfigs()
 	loadGameplayConfig()
+
+	existingplayerconfigs := GetListOfPlayerConfigs()
+	if len(existingplayerconfigs) > 4 {
+		existingplayerconfigs = existingplayerconfigs[:4]
+		LogInfo("Found more than 4 player configs, only loading the first 4: %v", existingplayerconfigs)
+	}
+	for _, name := range existingplayerconfigs {
+		GetPlayerConfig(name)
+	}
 
 	max_speed := GPConfig.SnakeSpeed * GPConfig.SpeedMultiplier
 	if max_speed > float64(GConfig.TPS) {
@@ -197,20 +211,39 @@ func loadGameplayConfig() {
 	}
 }
 
-func GetPlayerConfig(name string) *PlayerConfig {
+func GetListOfPlayerConfigs() []string {
+	userConfigDir := filepath.Join(BaseSystemPath, ConfigDir, "userconfig")
+	files, err := os.ReadDir(userConfigDir)
+	if err != nil {
+		LogWarning("Could not read user config directory: %v", err)
+		return []string{}
+	}
+
+	var playerNames []string
+	for _, file := range files {
+		if !file.IsDir() && filepath.Ext(file.Name()) == ".toml" {
+			playerNames = append(playerNames, strings.TrimSuffix(file.Name(), ".toml"))
+		}
+	}
+	return playerNames
+}
+
+func GetPlayerConfig(name string) (*PlayerConfig, bool) {
 	if cfg, ok := PConfigs[name]; ok {
-		return cfg
+		return cfg, true
 	}
 
 	userConfigDir := filepath.Join(BaseSystemPath, ConfigDir, "userconfig")
 	os.MkdirAll(userConfigDir, 0755)
 	path := filepath.Join(userConfigDir, name+".toml")
 
+	loaded := false
 	var cfg PlayerConfig
 	data, err := os.ReadFile(path)
 	if err == nil {
 		toml.Unmarshal(data, &cfg)
 		LogInfo("Loaded player config for %s.", name)
+		loaded = true
 	} else {
 		LogWarning("Player config for %s not found, using defaults.", name)
 		cfg = PlayerConfig{
@@ -236,11 +269,10 @@ func GetPlayerConfig(name string) *PlayerConfig {
 			ControllerSDLID: "",
 			Stats:           make(map[string]int),
 		}
-
 		saveConfig(path, cfg)
 	}
 	PConfigs[name] = &cfg
-	return &cfg
+	return &cfg, loaded
 }
 
 func saveConfig(path string, v interface{}) {

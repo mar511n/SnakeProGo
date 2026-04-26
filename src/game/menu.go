@@ -2,158 +2,131 @@ package game
 
 import (
 	"fmt"
+	"image/color"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/pelletier/go-toml/v2"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
 type MainMenu struct {
-	inputBuffer        []rune
-	history            []string
-	cursorBlink        int
-	players            []string
-	OnStartGame        func()
-	OnReplay           func()
-	OnControllerConfig func()
-	OnUnknownCommand   func(cmd string) bool
+	CurrentContext Context
+	Toaster        *Toaster
+	mainContext    *MainMenuContext
+	replayContext  *ReplayContext
+	history        *HistoryData
+	replay         *ReplaySession
+	resources      *ResourceManager
+	renderer       Renderer
+	OnStartGame    func()
 }
 
-func NewMainMenu(startGameCallback func(), controllerConfigCallback func()) *MainMenu {
-	return &MainMenu{
-		history: []string{
-			"Welcome to SnakeProGo!",
-		},
-		players:            []string{},
-		OnStartGame:        startGameCallback,
-		OnControllerConfig: controllerConfigCallback,
+func NewMainMenu(startGameCallback func(), resources *ResourceManager) *MainMenu {
+	mm := &MainMenu{
+		OnStartGame:   startGameCallback,
+		mainContext:   &MainMenuContext{},
+		replayContext: &ReplayContext{},
+		resources:     resources,
 	}
-}
+	mm.Toaster = &Toaster{
+		Toasts:          []*Toast{},
+		Pos:             Vec2f{X: 0.02 * GConfig.AspectRatio(), Y: 0.98},
+		ToastHeight:     0.05,
+		ToastSpacing:    0.008,
+		textOffset:      0.009,
+		TextColor:       color.White,
+		BoxColor:        color.RGBA{0, 0, 0, 150},
+		BoxBorderColor:  color.White,
+		BoxBorderWidth:  3,
+		HorizontalAlign: ToastAlignRight,
+		VerticalAlign:   ToastAlignUp,
+	}
+	mm.Toaster.Initialize(resources)
+	mm.mainContext.Initialize(mm, resources)
+	mm.replayContext.Initialize(mm)
+	mm.CurrentContext = mm.mainContext
 
-func (m *MainMenu) AddHistory(format string, args ...interface{}) {
-	entry := fmt.Sprintf(format, args...)
-	m.history = append(m.history, entry)
-}
-
-func repeatingKeyPressed(key ebiten.Key) bool {
-	const (
-		delay    = 30
-		interval = 3
-	)
-	d := inpututil.KeyPressDuration(key)
-	if d == 1 {
-		return true
-	}
-	if d >= delay && (d-delay)%interval == 0 {
-		return true
-	}
-	return false
+	mm.renderer = NewDefaultRenderer(mm.resources)
+	return mm
 }
 
 func (m *MainMenu) Update() error {
-	// Handle character input
-	m.inputBuffer = ebiten.AppendInputChars(m.inputBuffer)
-
-	// Handle Backspace
-	if repeatingKeyPressed(ebiten.KeyBackspace) {
-		if len(m.inputBuffer) > 0 {
-			m.inputBuffer = m.inputBuffer[:len(m.inputBuffer)-1]
-		}
+	m.Toaster.Update()
+	if m.CurrentContext != nil {
+		return m.CurrentContext.Update()
 	}
-
-	// Handle Enter
-	if repeatingKeyPressed(ebiten.KeyEnter) || repeatingKeyPressed(ebiten.KeyKPEnter) {
-		cmdStr := string(m.inputBuffer)
-		m.AddHistory("> " + cmdStr)
-		m.processCommand(cmdStr)
-		m.inputBuffer = m.inputBuffer[:0]
-	}
-
-	m.cursorBlink++
+	FatalError("MainMenu: No current context to update.")
 	return nil
 }
 
 func (m *MainMenu) Draw(screen *ebiten.Image) {
-	header := "Available commands:\n" +
-		"  addplayer (apl) <name>\n" +
-		"  removeplayer (rpl) <name>\n" +
-		"  listplayers (lpl)\n" +
-		"  replay (r)\n" +
-		"  showconfig (sc) [global/game/username]\n" +
-		"  controller (c)\n" +
-		"  startgame (start)\n" +
-		"  quit (q)\n" +
-		"----------------------------------------\n"
-
-	// Show last N lines of history + current input
-	var maxLines = GConfig.ScreenHeight / 16
-
-	start := 0
-	if len(m.history) > maxLines-11 {
-		start = len(m.history) - maxLines + 10 + 1
+	if m.CurrentContext != nil {
+		m.CurrentContext.Draw(screen)
+		m.Toaster.Draw(screen)
+	} else {
+		FatalError("MainMenu: No current context to draw.")
 	}
-
-	displayText := header + strings.Join(m.history[start:], "\n")
-	displayText += "\n> " + string(m.inputBuffer)
-
-	if m.cursorBlink%60 < 30 {
-		displayText += "_"
-	}
-
-	ebitenutil.DebugPrint(screen, displayText)
 }
 
-func (m *MainMenu) processCommand(cmd string) {
-	parts := strings.Fields(cmd)
-	if len(parts) == 0 {
-		return
-	}
+func (m *MainMenu) OnGameSessionDone(winners []string, hist *HistoryData, resources *ResourceManager) {
+	m.replay = NewReplaySession(hist, resources)
+	m.history = hist
+	m.renderer.InitRender(true, m.replay.State)
+}
 
-	command := parts[0]
-	args := parts[1:]
+func (m *MainMenu) PrintMessage(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	LogInfo(format, args...)
+	m.Toaster.AddToast(msg, 3.0)
+}
 
-	switch command {
-	case "controller", "c":
-		m.AddHistory("Entering controller configuration mode. Press any button on your controller to see its Name and SDL ID in the history. Press Escape to exit this mode.")
-		ids := ebiten.AppendGamepadIDs([]ebiten.GamepadID{})
-		sdlids := make([]string, len(ids))
-		for i, id := range ids {
-			sdlids[i] = ebiten.GamepadSDLID(id)
-		}
-		m.AddHistory("Detected controllers: %v", sdlids)
-		if m.OnControllerConfig != nil {
-			m.OnControllerConfig()
-		}
-	case "replay", "r":
-		m.AddHistory("Replaying game...")
-		if m.OnReplay != nil {
-			m.OnReplay()
-		}
-	case "addplayer", "apl":
-		if len(args) < 1 {
-			m.AddHistory("Usage: addplayer <name>")
+func (m *MainMenu) AddPlayer(name string) {
+	_, alreadyAdded := PConfigs[name]
+
+	if alreadyAdded {
+		m.PrintMessage("Player %s is already in the game.", name)
+	} else {
+		_, loaded := GetPlayerConfig(name) // Ensure config is loaded/created
+		if loaded {
+			m.PrintMessage("Config loaded and player %s added.", name)
 		} else {
-			name := args[0]
-			// Check if already added to list
-			alreadyAdded := false
-			for _, p := range m.players {
-				if p == name {
-					alreadyAdded = true
-					break
-				}
-			}
-
-			if alreadyAdded {
-				m.AddHistory("Player %s is already in the game.", name)
-			} else {
-				m.players = append(m.players, name)
-				GetPlayerConfig(name) // Ensure config is loaded/created
-				m.AddHistory("Added player: %s", name)
-			}
+			m.PrintMessage("Config created and player %s added.", name)
 		}
+	}
+}
+
+func (m *MainMenu) RemovePlayer(name string) {
+	_, found := PConfigs[name]
+	if found {
+		delete(PConfigs, name)
+		m.PrintMessage("Removed player: %s", name)
+	} else {
+		m.PrintMessage("Player not found: %s", name)
+	}
+}
+
+func (m *MainMenu) ShowControllers() {
+	ids := ebiten.AppendGamepadIDs([]ebiten.GamepadID{})
+	sdlids := make([]string, len(ids))
+	for i, id := range ids {
+		sdlids[i] = ebiten.GamepadSDLID(id)
+	}
+	if len(sdlids) == 0 {
+		m.PrintMessage("No controllers detected.")
+	} else {
+		m.PrintMessage("Detected controllers: %v", sdlids)
+	}
+}
+
+func (m *MainMenu) Quit() {
+	m.PrintMessage("Quitting...")
+	os.Exit(0)
+}
+
+/*
+	switch command {
 	case "showconfig", "sc":
 		if len(args) < 1 {
 			m.AddHistory("Usage: showconfig [global/game/<username>]")
@@ -190,50 +163,175 @@ func (m *MainMenu) processCommand(cmd string) {
 				}
 			}
 		}
-	case "removeplayer", "rpl":
-		if len(args) < 1 {
-			m.AddHistory("Usage: removeplayer <name>")
-		} else {
-			name := args[0]
-			found := false
-			newPlayers := []string{}
-			for _, p := range m.players {
-				if p == name {
-					found = true
-				} else {
-					newPlayers = append(newPlayers, p)
-				}
+} */
+
+type MainMenuContext struct {
+	menu               *MainMenu
+	resources          *ResourceManager
+	guiMain            *GuiContext
+	background         *ebiten.Image
+	playernamefontsize float64
+}
+
+func (c *MainMenuContext) Initialize(menu *MainMenu, resources *ResourceManager) {
+	c.menu = menu
+	c.resources = resources
+	c.background = resources.Images["UI"]["WinBack"]
+	bw := 0.045
+	xspace := 0.004
+	x0 := 1.0 - (bw + xspace)
+	y0 := 0.13
+	c.playernamefontsize = GetFontSizeForHeight(c.resources.Fonts["comic"], 0.037)
+	elements := make([]GuiElement, 0)
+	startButton := &GuiButton{
+		Rect:  Rectf{Pos: Vec2f{X: x0, Y: y0}, Size: Vec2f{X: bw, Y: bw / GConfig.AspectRatio()}},
+		Image: resources.Images["UI"]["play"],
+		OnClick: func() {
+			LogInfo("Starting game...")
+			if c.menu.OnStartGame != nil {
+				c.menu.OnStartGame()
 			}
-			if found {
-				m.players = newPlayers
-				delete(PConfigs, name)
-				m.AddHistory("Removed player: %s", name)
+		},
+		neighbors: make(map[GuiDirection]GuiElement),
+	}
+	replayBtn := &GuiButton{
+		Rect:  Rectf{Pos: Vec2f{X: x0, Y: y0 + (bw+xspace)/GConfig.AspectRatio()}, Size: Vec2f{X: bw, Y: bw / GConfig.AspectRatio()}},
+		Image: resources.Images["UI"]["replay"],
+		OnClick: func() {
+			if c.menu.replay != nil {
+				c.menu.PrintMessage("Starting replay...")
+				c.menu.mainContext.StartContextSwitch(c.menu.replayContext, func(toContext Context) { c.menu.CurrentContext = c.menu.replayContext })
 			} else {
-				m.AddHistory("Player not found: %s", name)
+				c.menu.PrintMessage("No replay available.")
+			}
+		},
+		neighbors: make(map[GuiDirection]GuiElement),
+	}
+	controllerBtn := &GuiButton{
+		Rect:  Rectf{Pos: Vec2f{X: x0, Y: y0 + (bw+xspace)*2/GConfig.AspectRatio()}, Size: Vec2f{X: bw, Y: bw / GConfig.AspectRatio()}},
+		Image: resources.Images["UI"]["controller"],
+		OnClick: func() {
+			c.menu.ShowControllers()
+		},
+		neighbors: make(map[GuiDirection]GuiElement),
+	}
+	quitButton := &GuiButton{
+		Rect:  Rectf{Pos: Vec2f{X: x0, Y: y0 + (bw+xspace)*3/GConfig.AspectRatio()}, Size: Vec2f{X: bw, Y: bw / GConfig.AspectRatio()}},
+		Image: resources.Images["UI"]["quit"],
+		OnClick: func() {
+			c.menu.Quit()
+		},
+		neighbors: make(map[GuiDirection]GuiElement),
+	}
+	newplayertextedit := &GuiEditText{
+		Rect:             Rectf{Pos: Vec2f{X: 0.37, Y: 0.45}, Size: Vec2f{X: 0.25, Y: 0.04}},
+		neighbors:        make(map[GuiDirection]GuiElement),
+		resources:        c.resources,
+		AlloweLineBreaks: false,
+		DisallowedChars:  "",
+		TextColor:        color.Black,
+		BoxColor:         color.RGBA{0, 0, 0, 50},
+		BoxFocusColor:    color.RGBA{32, 32, 32, 50},
+		BoxBorderColor:   color.Black,
+		BoxBorderWidth:   3,
+		MaxCharacters:    20,
+		Text:             "[username]",
+		OnSelectFunc: func(t *GuiEditText) {
+			if t.Text == "[username]" {
+				t.Text = ""
+			}
+		},
+		OnDeselectFunc: func(t *GuiEditText) {
+			if t.Text == "" {
+				t.Text = "[username]"
+			}
+		},
+	}
+	newplayertextedit.FontSize = c.playernamefontsize
+	addPlayerBtn := &GuiButton{
+		Rect:  Rectf{Pos: Vec2f{X: newplayertextedit.Rect.Pos.X + newplayertextedit.Rect.Size.X + 0.015, Y: 0.45}, Size: Vec2f{X: 0.04 * GConfig.AspectRatio(), Y: 0.04}},
+		Image: resources.Images["UI"]["add"],
+		OnClick: func() {
+			c.menu.AddPlayer(newplayertextedit.Text)
+		},
+		neighbors: make(map[GuiDirection]GuiElement),
+	}
+	subPlayerBtn := &GuiButton{
+		Rect:  Rectf{Pos: Vec2f{X: addPlayerBtn.Rect.Pos.X + 0.04*GConfig.AspectRatio() + 0.005, Y: 0.45}, Size: Vec2f{X: 0.04 * GConfig.AspectRatio(), Y: 0.04}},
+		Image: resources.Images["UI"]["sub"],
+		OnClick: func() {
+			c.menu.RemovePlayer(newplayertextedit.Text)
+		},
+		neighbors: make(map[GuiDirection]GuiElement),
+	}
+
+	elements = append(elements, newplayertextedit, addPlayerBtn, subPlayerBtn, startButton, replayBtn, controllerBtn, quitButton)
+	for i, el := range elements {
+		el.SetNeighboringElement(GuiDirDown, elements[(i+1)%len(elements)])
+		el.SetNeighboringElement(GuiDirUp, elements[(i-1+len(elements))%len(elements)])
+	}
+	c.guiMain = NewGuiContext(elements)
+	c.guiMain.drawDebugRects = true
+	for _, btn := range elements {
+		if b, ok := btn.(*GuiButton); ok {
+			b.deselect = func() bool {
+				c.guiMain.selectedElement = -1
+				return true
 			}
 		}
-	case "listplayers", "lpl":
-		if len(m.players) == 0 {
-			m.AddHistory("No players joined.")
-		} else {
-			m.AddHistory("Current players: " + strings.Join(m.players, ", "))
+	}
+}
+
+func (c *MainMenuContext) Update() error {
+	return c.guiMain.Update()
+}
+func (c *MainMenuContext) Draw(screen *ebiten.Image) {
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(float64(screen.Bounds().Dx())/float64(c.background.Bounds().Dx()), float64(screen.Bounds().Dy())/float64(c.background.Bounds().Dy()))
+	screen.DrawImage(c.background, op)
+	op2 := &text.DrawOptions{}
+	op2.ColorScale.ScaleWithColor(color.Black)
+	op2.LayoutOptions.LineSpacing = 0.04 * float64(GConfig.ScreenHeight)
+	var plnames []string
+	for name, _ := range PConfigs {
+		plnames = append(plnames, name)
+	}
+	sort.Strings(plnames)
+	DrawTextRelative(screen, strings.Join(plnames, "\n"), &text.GoTextFace{Source: c.resources.Fonts["comic"], Size: c.playernamefontsize}, Vec2f{X: 0.37, Y: 0.51}, op2)
+	c.guiMain.Draw(screen)
+}
+func (c *MainMenuContext) StartContextSwitch(newContext Context, switchContext func(toContext Context)) error {
+	switchContext(newContext)
+	return nil
+}
+
+type ReplayContext struct {
+	menu *MainMenu
+}
+
+func (r *ReplayContext) StartContextSwitch(newContext Context, switchContext func(toContext Context)) error {
+	switchContext(newContext)
+	return nil
+}
+
+func (r *ReplayContext) Initialize(menu *MainMenu) {
+	r.menu = menu
+}
+
+func (r *ReplayContext) Update() error {
+	if r.menu.replay != nil {
+		r.menu.replay.Update()
+		if r.menu.replay.IsFinished() {
+			r.menu.PrintMessage("Replay finished.")
+			r.menu.replay = NewReplaySession(r.menu.history, r.menu.resources)
+			r.StartContextSwitch(r.menu.mainContext, func(toContext Context) { r.menu.CurrentContext = r.menu.mainContext })
 		}
-	case "startgame", "start":
-		m.AddHistory("Starting game...")
-		if m.OnStartGame != nil {
-			m.OnStartGame()
-		}
-	case "quit", "exit", "q":
-		m.AddHistory("Quitting...")
-		os.Exit(0)
-	default:
-		if m.OnUnknownCommand != nil {
-			handled := m.OnUnknownCommand(command)
-			if handled {
-				return
-			} else {
-				m.AddHistory("Unknown command: %s", command)
-			}
-		}
+	}
+	return nil
+}
+
+func (r *ReplayContext) Draw(screen *ebiten.Image) {
+	if r.menu.replay != nil && r.menu.replay.State != nil && r.menu.renderer != nil {
+		r.menu.renderer.Render(r.menu.replay.State, screen)
 	}
 }

@@ -148,6 +148,24 @@ func (v Vec2f) ToVec2i() Vec2i {
 	return Vec2i{int16(v.X), int16(v.Y)}
 }
 
+type Recti struct {
+	Pos, Size Vec2i
+}
+
+func (r Recti) Contains(point Vec2i) bool {
+	return point.X >= r.Pos.X && point.X < r.Pos.X+r.Size.X &&
+		point.Y >= r.Pos.Y && point.Y < r.Pos.Y+r.Size.Y
+}
+
+type Rectf struct {
+	Pos, Size Vec2f
+}
+
+func (r Rectf) Contains(point Vec2f) bool {
+	return point.X >= r.Pos.X && point.X < r.Pos.X+r.Size.X &&
+		point.Y >= r.Pos.Y && point.Y < r.Pos.Y+r.Size.Y
+}
+
 var uniqueIDCounter uint64 = 1
 
 func GetUniqueID() uint64 {

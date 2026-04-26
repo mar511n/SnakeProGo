@@ -5,7 +5,7 @@ import (
 )
 
 // BaseSnake contains the physical properties and status of a snake entity.
-// Implements Collidable and Updatable.
+// Implements Collidable and UpdatableGameObj.
 // Update method handles movement, growth, and status effects updates.
 type BaseSnake struct {
 	Body           *CollisionTiles // Head is at index 0 of the Vec2i slice

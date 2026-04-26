@@ -110,8 +110,16 @@ func (i *InputFrame) ProcessSmartInput(code string, playername string, playerCon
 	}
 }
 
-// Process reads current hardware inputs and populates Directions and ItemsUsed based on player keymaps.
+func (i *InputFrame) ProcessJustReleased(playerConfigs map[int]*PlayerConfig) {
+	i.process(playerConfigs, inpututil.AppendJustReleasedKeys, inpututil.IsStandardGamepadButtonJustReleased)
+}
+
 func (i *InputFrame) Process(playerConfigs map[int]*PlayerConfig) {
+	i.process(playerConfigs, inpututil.AppendJustPressedKeys, inpututil.IsStandardGamepadButtonJustPressed)
+}
+
+// Process reads current hardware inputs and populates Directions and ItemsUsed based on player keymaps.
+func (i *InputFrame) process(playerConfigs map[int]*PlayerConfig, appendPressedKeys func([]ebiten.Key) []ebiten.Key, isGamepadButtonPressed func(ebiten.GamepadID, ebiten.StandardGamepadButton) bool) {
 	if i.Directions == nil {
 		i.Directions = make(map[int]PlayerActionTurn)
 	}
@@ -128,7 +136,8 @@ func (i *InputFrame) Process(playerConfigs map[int]*PlayerConfig) {
 		"turn_right": ActionTurnRight,
 	}
 
-	keys := inpututil.AppendJustPressedKeys(nil)
+	//keys := inpututil.AppendJustPressedKeys(nil)
+	keys := appendPressedKeys(nil)
 
 	for pID, config := range playerConfigs {
 		i.Directions[pID] = ActionNone
@@ -158,7 +167,8 @@ func (i *InputFrame) Process(playerConfigs map[int]*PlayerConfig) {
 					if !ok {
 						continue
 					}
-					if inpututil.IsStandardGamepadButtonJustPressed(gamepadid, btn) {
+					// inpututil.IsStandardGamepadButtonJustPressed(gamepadid, btn)
+					if isGamepadButtonPressed(gamepadid, btn) {
 						if actionStr == "use_item" {
 							i.ItemsUsed[pID] = true
 						} else if act, ok := actionMap[actionStr]; ok {
