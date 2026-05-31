@@ -60,6 +60,7 @@ func NewGuiContext(elements []GuiElement) *GuiContext {
 	pli := 0
 	for _, plcfg := range PConfigs {
 		gc.inputconfigs[pli] = plcfg
+		gc.inputconfigs[pli].KeyMap["use_item"] = ""
 		pli++
 	}
 	gc.inputconfigs[pli] = &PlayerConfig{
@@ -75,7 +76,7 @@ func NewGuiContext(elements []GuiElement) *GuiContext {
 		},
 		ControllerMap:   map[string]string{},
 		ControllerSDLID: "",
-		Stats:           make(map[string]int),
+		Stats:           NewStatistics(),
 	}
 	pli++
 	gc.inputconfigs[pli] = &PlayerConfig{
@@ -91,7 +92,7 @@ func NewGuiContext(elements []GuiElement) *GuiContext {
 		},
 		ControllerMap:   map[string]string{},
 		ControllerSDLID: "",
-		Stats:           make(map[string]int),
+		Stats:           NewStatistics(),
 	}
 	return gc
 }
@@ -406,6 +407,69 @@ func (t *GuiEditText) Draw(screen *ebiten.Image) {
 	if t.focused {
 		fillcol = t.BoxFocusColor
 	}
+	DrawRectRelative(screen, t.Rect.Pos.Sub(Vec2f{0.01 * GConfig.AspectRatio(), 0.01}), t.Rect.Size.Add(Vec2f{0.02 * GConfig.AspectRatio(), 0.02}), fillcol, t.BoxBorderColor, t.BoxBorderWidth)
+	op := &text.DrawOptions{}
+	op.ColorScale.ScaleWithColor(t.TextColor)
+	DrawTextRelative(
+		screen,
+		et,
+		&text.GoTextFace{
+			Source: t.resources.Fonts["comic"],
+			Size:   t.FontSize,
+		},
+		t.Rect.Pos,
+		op,
+	)
+}
+
+type GuiText struct {
+	Rect           Rectf
+	focused        bool
+	selected       bool
+	contextID      int
+	Text           string
+	neighbors      map[GuiDirection]GuiElement
+	resources      *ResourceManager
+	FontSize       float64
+	TextColor      color.Color
+	BoxColor       color.Color
+	BoxBorderColor color.Color
+	BoxBorderWidth float64
+	OnSelectFunc   func(t *GuiText)
+	OnDeselectFunc func(t *GuiText)
+}
+
+func (t *GuiText) Bounds() *Rectf                                      { return &t.Rect }
+func (t *GuiText) GetContextID() int                                   { return t.contextID }
+func (t *GuiText) SetContextID(id int)                                 { t.contextID = id }
+func (t *GuiText) OnFocusGained()                                      { t.focused = true }
+func (t *GuiText) OnFocusLost()                                        { t.focused = false }
+func (t *GuiText) OnInput(dirAction GuiAction, selectAction GuiAction) {}
+
+func (t *GuiText) OnSelect() {
+	t.selected = true
+	if t.OnSelectFunc != nil {
+		t.OnSelectFunc(t)
+	}
+}
+func (t *GuiText) OnDeselect() {
+	t.selected = false
+	if t.OnDeselectFunc != nil {
+		t.OnDeselectFunc(t)
+	}
+}
+func (t *GuiText) Update() error { return nil }
+func (t *GuiText) SetNeighboringElement(dir GuiDirection, element GuiElement) {
+	t.neighbors[dir] = element
+}
+func (t *GuiText) GetNeighboringElement(dir GuiDirection) (GuiElement, bool) {
+	neighbor, found := t.neighbors[dir]
+	return neighbor, found
+}
+
+func (t *GuiText) Draw(screen *ebiten.Image) {
+	et := t.Text
+	fillcol := t.BoxColor
 	DrawRectRelative(screen, t.Rect.Pos.Sub(Vec2f{0.01 * GConfig.AspectRatio(), 0.01}), t.Rect.Size.Add(Vec2f{0.02 * GConfig.AspectRatio(), 0.02}), fillcol, t.BoxBorderColor, t.BoxBorderWidth)
 	op := &text.DrawOptions{}
 	op.ColorScale.ScaleWithColor(t.TextColor)

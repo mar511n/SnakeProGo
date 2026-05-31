@@ -73,7 +73,25 @@ type PlayerConfig struct {
 	KeyMap          map[string]string `toml:"key_map"`           // keys for [up/down/left/right] and [turn_left/turn_right] and use_item
 	ControllerMap   map[string]string `toml:"controller_map"`    // controller buttons for [up/down/left/right] and [turn_left/turn_right] and use_item
 	ControllerSDLID string            `toml:"controller_sdl_id"` // SDL ID of the controller assigned to this player
-	Stats           map[string]int    `toml:"stats"`             // player statistics like games played, apples eaten, etc.
+	Stats           *Statistics       `toml:"stats"`             // player statistics like games played, apples eaten, etc.
+}
+
+func (c *PlayerConfig) Copy() *PlayerConfig {
+	newKeyMap := make(map[string]string)
+	for k, v := range c.KeyMap {
+		newKeyMap[k] = v
+	}
+	newControllerMap := make(map[string]string)
+	for k, v := range c.ControllerMap {
+		newControllerMap[k] = v
+	}
+	return &PlayerConfig{
+		Name:            c.Name,
+		KeyMap:          newKeyMap,
+		ControllerMap:   newControllerMap,
+		ControllerSDLID: c.ControllerSDLID,
+		Stats:           c.Stats.Copy(),
+	}
 }
 
 var (
@@ -267,12 +285,21 @@ func GetPlayerConfig(name string) (*PlayerConfig, bool) {
 				"use_item":   MarshalStandardGamepadButton(ebiten.StandardGamepadButtonRightRight),
 			},
 			ControllerSDLID: "",
-			Stats:           make(map[string]int),
+			Stats:           NewStatistics(),
 		}
 		saveConfig(path, cfg)
 	}
 	PConfigs[name] = &cfg
 	return &cfg, loaded
+}
+
+func SavePlayerConfigs() {
+	userConfigDir := filepath.Join(BaseSystemPath, ConfigDir, "userconfig")
+	os.MkdirAll(userConfigDir, 0755)
+	for name, cfg := range PConfigs {
+		path := filepath.Join(userConfigDir, name+".toml")
+		saveConfig(path, cfg)
+	}
 }
 
 func saveConfig(path string, v interface{}) {

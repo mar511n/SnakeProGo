@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"image/color"
 	"os"
-	"sort"
-	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
 type MainMenu struct {
@@ -74,6 +71,7 @@ func (m *MainMenu) OnGameSessionDone(winners []string, hist *HistoryData, resour
 	m.replay = NewReplaySession(hist, resources)
 	m.history = hist
 	m.renderer.InitRender(true, m.replay.State)
+	SavePlayerConfigs()
 }
 
 func (m *MainMenu) PrintMessage(format string, args ...interface{}) {
@@ -89,6 +87,7 @@ func (m *MainMenu) AddPlayer(name string) {
 		m.PrintMessage("Player %s is already in the game.", name)
 	} else {
 		_, loaded := GetPlayerConfig(name) // Ensure config is loaded/created
+		m.mainContext.AddPlayerName(name, m)
 		if loaded {
 			m.PrintMessage("Config loaded and player %s added.", name)
 		} else {
@@ -101,6 +100,7 @@ func (m *MainMenu) RemovePlayer(name string) {
 	_, found := PConfigs[name]
 	if found {
 		delete(PConfigs, name)
+		m.mainContext.RemovePlayerName(name, m)
 		m.PrintMessage("Removed player: %s", name)
 	} else {
 		m.PrintMessage("Player not found: %s", name)
@@ -170,7 +170,10 @@ type MainMenuContext struct {
 	resources          *ResourceManager
 	guiMain            *GuiContext
 	background         *ebiten.Image
+	newplayertextedit  *GuiEditText
+	playerlist         map[string]int
 	playernamefontsize float64
+	static_elements    []GuiElement
 }
 
 func (c *MainMenuContext) Initialize(menu *MainMenu, resources *ResourceManager) {
@@ -223,7 +226,7 @@ func (c *MainMenuContext) Initialize(menu *MainMenu, resources *ResourceManager)
 		},
 		neighbors: make(map[GuiDirection]GuiElement),
 	}
-	newplayertextedit := &GuiEditText{
+	c.newplayertextedit = &GuiEditText{
 		Rect:             Rectf{Pos: Vec2f{X: 0.37, Y: 0.45}, Size: Vec2f{X: 0.25, Y: 0.04}},
 		neighbors:        make(map[GuiDirection]GuiElement),
 		resources:        c.resources,
@@ -247,12 +250,12 @@ func (c *MainMenuContext) Initialize(menu *MainMenu, resources *ResourceManager)
 			}
 		},
 	}
-	newplayertextedit.FontSize = c.playernamefontsize
+	c.newplayertextedit.FontSize = c.playernamefontsize
 	addPlayerBtn := &GuiButton{
-		Rect:  Rectf{Pos: Vec2f{X: newplayertextedit.Rect.Pos.X + newplayertextedit.Rect.Size.X + 0.015, Y: 0.45}, Size: Vec2f{X: 0.04 * GConfig.AspectRatio(), Y: 0.04}},
+		Rect:  Rectf{Pos: Vec2f{X: c.newplayertextedit.Rect.Pos.X + c.newplayertextedit.Rect.Size.X + 0.015, Y: 0.45}, Size: Vec2f{X: 0.04 * GConfig.AspectRatio(), Y: 0.04}},
 		Image: resources.Images["UI"]["add"],
 		OnClick: func() {
-			c.menu.AddPlayer(newplayertextedit.Text)
+			c.menu.AddPlayer(c.newplayertextedit.Text)
 		},
 		neighbors: make(map[GuiDirection]GuiElement),
 	}
@@ -260,16 +263,18 @@ func (c *MainMenuContext) Initialize(menu *MainMenu, resources *ResourceManager)
 		Rect:  Rectf{Pos: Vec2f{X: addPlayerBtn.Rect.Pos.X + 0.04*GConfig.AspectRatio() + 0.005, Y: 0.45}, Size: Vec2f{X: 0.04 * GConfig.AspectRatio(), Y: 0.04}},
 		Image: resources.Images["UI"]["sub"],
 		OnClick: func() {
-			c.menu.RemovePlayer(newplayertextedit.Text)
+			c.menu.RemovePlayer(c.newplayertextedit.Text)
 		},
 		neighbors: make(map[GuiDirection]GuiElement),
 	}
 
-	elements = append(elements, newplayertextedit, addPlayerBtn, subPlayerBtn, startButton, replayBtn, controllerBtn, quitButton)
+	elements = append(elements, c.newplayertextedit, addPlayerBtn, subPlayerBtn, startButton, replayBtn, controllerBtn, quitButton)
 	for i, el := range elements {
 		el.SetNeighboringElement(GuiDirDown, elements[(i+1)%len(elements)])
 		el.SetNeighboringElement(GuiDirUp, elements[(i-1+len(elements))%len(elements)])
 	}
+	c.static_elements = elements
+
 	c.guiMain = NewGuiContext(elements)
 	c.guiMain.drawDebugRects = true
 	for _, btn := range elements {
@@ -278,6 +283,54 @@ func (c *MainMenuContext) Initialize(menu *MainMenu, resources *ResourceManager)
 				c.guiMain.selectedElement = -1
 				return true
 			}
+		}
+	}
+	c.playerlist = make(map[string]int)
+	for name, _ := range PConfigs {
+		c.AddPlayerName(name, menu)
+	}
+}
+
+func (c *MainMenuContext) AddPlayerName(name string, m *MainMenu) bool {
+	if _, ok := c.playerlist[name]; ok {
+		return false
+	}
+	label := &GuiText{
+		focused:        false,
+		selected:       false,
+		resources:      m.resources,
+		neighbors:      make(map[GuiDirection]GuiElement),
+		Rect:           Rectf{Pos: Vec2f{X: 0.37, Y: 0.51 + 0.045*float64(len(c.playerlist))}, Size: Vec2f{X: 0.25, Y: 0.04}},
+		Text:           name,
+		FontSize:       m.mainContext.playernamefontsize,
+		TextColor:      color.Black,
+		BoxColor:       color.RGBA{0, 0, 0, 0},
+		BoxBorderColor: color.Transparent,
+		BoxBorderWidth: 3,
+		OnSelectFunc: func(t *GuiText) {
+			m.mainContext.newplayertextedit.Text = t.Text
+			t.OnDeselect()
+			m.mainContext.guiMain.selectedElement = -1
+		},
+	}
+	m.mainContext.guiMain.Elements = append(m.mainContext.guiMain.Elements, label)
+	label.SetContextID(len(m.mainContext.guiMain.Elements) - 1)
+	c.playerlist[name] = label.GetContextID()
+	return true
+}
+
+func (c *MainMenuContext) RemovePlayerName(name string, m *MainMenu) {
+	if _, ok := c.playerlist[name]; ok {
+		m.mainContext.guiMain.Elements = c.static_elements
+		plnames := make([]string, 0, len(c.playerlist)-1)
+		for plname, _ := range c.playerlist {
+			if plname != name {
+				plnames = append(plnames, plname)
+			}
+		}
+		c.playerlist = make(map[string]int)
+		for _, plname := range plnames {
+			c.AddPlayerName(plname, m)
 		}
 	}
 }
@@ -289,15 +342,17 @@ func (c *MainMenuContext) Draw(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Scale(float64(screen.Bounds().Dx())/float64(c.background.Bounds().Dx()), float64(screen.Bounds().Dy())/float64(c.background.Bounds().Dy()))
 	screen.DrawImage(c.background, op)
-	op2 := &text.DrawOptions{}
-	op2.ColorScale.ScaleWithColor(color.Black)
-	op2.LayoutOptions.LineSpacing = 0.04 * float64(GConfig.ScreenHeight)
-	var plnames []string
-	for name, _ := range PConfigs {
-		plnames = append(plnames, name)
-	}
-	sort.Strings(plnames)
-	DrawTextRelative(screen, strings.Join(plnames, "\n"), &text.GoTextFace{Source: c.resources.Fonts["comic"], Size: c.playernamefontsize}, Vec2f{X: 0.37, Y: 0.51}, op2)
+	/*
+		op2 := &text.DrawOptions{}
+		op2.ColorScale.ScaleWithColor(color.Black)
+		op2.LayoutOptions.LineSpacing = 0.04 * float64(GConfig.ScreenHeight)
+		var plnames []string
+		for name, _ := range PConfigs {
+			plnames = append(plnames, name)
+		}
+		sort.Strings(plnames)
+		DrawTextRelative(screen, strings.Join(plnames, "\n"), &text.GoTextFace{Source: c.resources.Fonts["comic"], Size: c.playernamefontsize}, Vec2f{X: 0.37, Y: 0.51}, op2)
+	*/
 	c.guiMain.Draw(screen)
 }
 func (c *MainMenuContext) StartContextSwitch(newContext Context, switchContext func(toContext Context)) error {
