@@ -13,6 +13,7 @@ type BaseSnake struct {
 	NextFacing     Vec2i           `msgpack:"-"` // Buffered input direction
 	Fett           int             `msgpack:"-"` // "Fett" counter for growth buffer
 	StatusEffects  []*StatusEffect // Active status effects (e.g. dead, invincible, speed boost)
+	BaseSpeed      float64         `msgpack:"-"` // Base speed in segments per second
 	ticksSinceMove int             // Counter to track movement timing based on speed
 	die            func(s *BaseSnake, reason string, state *GameState, hist *HistoryData)
 	owner          interface{}
@@ -45,6 +46,7 @@ func NewBaseSnake(spawnpoint Vec2i, direction Vec2i, length int) *BaseSnake {
 		Facing:         direction,
 		NextFacing:     direction,
 		Fett:           length - 1,
+		BaseSpeed:      GPConfig.SnakeSpeed,
 		ticksSinceMove: 0,
 		StatusEffects:  []*StatusEffect{},
 		die: func(s *BaseSnake, reason string, state *GameState, hist *HistoryData) {
@@ -72,7 +74,7 @@ func (s *BaseSnake) UpdateEffects(state *GameState, hist *HistoryData) (speed_mu
 }
 
 func (s *BaseSnake) UpdateMovement(state *GameState, speed_multiplier float64) {
-	current_speed := GPConfig.SnakeSpeed * speed_multiplier
+	current_speed := s.BaseSpeed * speed_multiplier
 	ticks_per_move := float64(GConfig.TPS) / current_speed
 	s.ticksSinceMove++
 	if s.ticksSinceMove >= int(ticks_per_move) {
@@ -117,6 +119,17 @@ func (s *BaseSnake) HasStatusEffect(effectType StatusEffectType) bool {
 	}
 	return false
 }
+func (s *BaseSnake) RemoveTiles(num int, death_reason string) {
+	if len(s.Body.Tiles)-num < GPConfig.SnakeSurvivalLength {
+		if !s.HasStatusEffect(StatusEffectInvincibility) && !s.IsDead() && !s.HasStatusEffect(StatusEffectRespawning) && !s.HasStatusEffect(StatusEffectGhost) {
+			s.MarkForDeath(death_reason)
+		}
+	} else {
+		if !s.HasStatusEffect(StatusEffectInvincibility) {
+			s.Body.Tiles = s.Body.Tiles[:len(s.Body.Tiles)-num]
+		}
+	}
+}
 func (s *BaseSnake) CheckSelfCollision(other Collidable, state *GameState) (consumed bool) {
 	if other.GetCollider() == s.GetCollider() {
 		head_tile := s.Body.Tiles[0]
@@ -137,24 +150,7 @@ func (s *BaseSnake) CheckWallCollision(other Collidable, state *GameState) (cons
 	}
 	return false
 }
-func (s *BaseSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state *GameState) {
-	other_owner := other.GetOwner()
-
-	switch o := other_owner.(type) {
-	case *BaseSnake:
-		// handle snake-snake collision
-		if tile.Equals(o.Body.Tiles[0]) {
-			// own head collided with other snake (or both heads collided)
-			s.MarkForDeath("snake collision")
-		} else {
-			// other snake's head collided with own body - add a kill to own score
-			// LogInfo("Snake %v killed snake %v by collision at %v", s.GetOwner(), o.GetOwner(), tile)
-		}
-	case *Apple:
-		s.Fett += o.Nutrition
-		o.IsConsumed = true
-	}
-}
+func (s *BaseSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state *GameState) {}
 func (s *BaseSnake) OnCollision(other Collidable, tile Vec2i, state *GameState) {
 	if !s.CheckSelfCollision(other, state) {
 		if !s.CheckWallCollision(other, state) {
@@ -174,7 +170,7 @@ func (s *BaseSnake) ScanLayers() CollisionMask {
 	} else if s.HasStatusEffect(StatusEffectInvincibility) {
 		return LayerApple | LayerItem
 	}
-	return LayerSnake | LayerApple | LayerWall | LayerEntity | LayerItem
+	return LayerWall | LayerSnake | LayerEntity | LayerApple | LayerItem
 }
 func (s *BaseSnake) GetCollider() CollisionObject { return s.Body }
 func (s *BaseSnake) GetOwner() interface{}        { return s.owner }
@@ -286,14 +282,6 @@ func DiePlayer(si *BaseSnake, reason string, state *GameState, hist *HistoryData
 	}
 }
 
-func (s *PlayerSnake) RemoveTiles(num int, death_reason string) {
-	if len(s.Body.Tiles)-num < GPConfig.SnakeSurvivalLength {
-		s.MarkForDeath(death_reason)
-	} else {
-		s.Body.Tiles = s.Body.Tiles[:len(s.Body.Tiles)-num]
-	}
-}
-
 func (s *PlayerSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state *GameState) {
 	other_owner := other.GetOwner()
 
@@ -315,21 +303,10 @@ func (s *PlayerSnake) HandleOtherCollisions(other Collidable, tile Vec2i, state 
 		state.PlaySoundEffect("Item")
 		s.HeldItem = o.ItemType
 		o.IsConsumed = true
+	case *BotSnake:
+	case *FartEntity:
 	case *BulletEntity:
-		if o.OwnerID != s.ID {
-			ti := -1
-			for i, t := range s.Body.Tiles {
-				if tile.Equals(t) {
-					ti = i
-					break
-				}
-			}
-			if ti != -1 {
-				s.RemoveTiles(len(s.Body.Tiles)-ti, fmt.Sprintf("shot by player %d", o.OwnerID))
-			} else {
-				LogWarning("BulletEntity collided with snake %d at tile %v but no matching body tile found", s.ID, tile)
-			}
-		}
+		// Do nothing
 	default:
 		LogInfo("Unhandled collision at %v with object of type %v", tile, other_owner)
 	}

@@ -58,7 +58,7 @@ type Toaster struct {
 
 func (t *Toaster) Initialize(resources *ResourceManager) {
 	t.resources = resources
-	t.fontSize = GetFontSizeForHeight(t.resources.Fonts["comic"], t.ToastHeight-t.textOffset*2)
+	t.fontSize = GetFontSizeForHeight(t.resources.Fonts["default"], t.ToastHeight-t.textOffset*2)
 }
 
 func (t *Toaster) AddToast(message string, duration float64) {
@@ -79,7 +79,7 @@ func (t *Toaster) Update() error {
 
 func (t *Toaster) Draw(screen *ebiten.Image) {
 	font := &text.GoTextFace{
-		Source: t.resources.Fonts["comic"],
+		Source: t.resources.Fonts["default"],
 		Size:   t.fontSize,
 	}
 	for i, toast := range t.Toasts {

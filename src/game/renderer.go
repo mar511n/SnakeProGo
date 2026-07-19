@@ -174,6 +174,24 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 			fart_img := r.Rm.Images[ItemCategoryName][ItemFartCloudName]
 			op := r.GetTileDrawOptions(fart_img, int(e.Center.X)-GPConfig.FartSize, int(e.Center.Y)-GPConfig.FartSize, 0, float64(1+2*GPConfig.FartSize), r.TileSize, 0.0, true)
 			r.DrawImagePeriodic(screen, fart_img, op)
+		case *BotSnake:
+			if e.IsDead() {
+				continue
+			}
+			snake := e.BaseSnake
+			bodyparts := make([]*ebiten.Image, 5)
+			drawSnake := true
+			for i := 0; i < 5; i++ {
+				bodyparts[i], drawSnake = r.Rm.Images[SnakeTilesBaseDir+"Bot"][SnakeTileBodypartNames[i]]
+				if !drawSnake {
+					LogError("Snake body part image '%v' for snake '%v' not found in resource manager, cannot render snake", SnakeTileBodypartNames[i], SnakeTilesBaseDir+"Bot")
+					continue
+				}
+			}
+			if !drawSnake {
+				continue
+			}
+			r.DrawSnake(screen, snake.Body.Tiles, snake.Facing, bodyparts, false)
 		}
 	}
 
@@ -214,7 +232,7 @@ func (r *DefaultRenderer) Render(state *GameState, screen *ebiten.Image) {
 		}
 	}
 
-	// Render snakes
+	// Render player snakes
 	// sort player IDs to ensure consistent rendering order
 	IDs := make([]int, 0, len(state.Players))
 	for id := range state.Players {

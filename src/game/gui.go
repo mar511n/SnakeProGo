@@ -59,7 +59,7 @@ func NewGuiContext(elements []GuiElement) *GuiContext {
 	}
 	pli := 0
 	for _, plcfg := range PConfigs {
-		gc.inputconfigs[pli] = plcfg
+		gc.inputconfigs[pli] = plcfg.Copy()
 		gc.inputconfigs[pli].KeyMap["use_item"] = ""
 		pli++
 	}
@@ -414,7 +414,7 @@ func (t *GuiEditText) Draw(screen *ebiten.Image) {
 		screen,
 		et,
 		&text.GoTextFace{
-			Source: t.resources.Fonts["comic"],
+			Source: t.resources.Fonts["default"],
 			Size:   t.FontSize,
 		},
 		t.Rect.Pos,
@@ -477,7 +477,7 @@ func (t *GuiText) Draw(screen *ebiten.Image) {
 		screen,
 		et,
 		&text.GoTextFace{
-			Source: t.resources.Fonts["comic"],
+			Source: t.resources.Fonts["default"],
 			Size:   t.FontSize,
 		},
 		t.Rect.Pos,

@@ -119,7 +119,7 @@ func InitializeItems() {
 	ItemChances[ItemShooting] = GPConfig.ItemShootingChance
 	ItemChances[ItemFart] = GPConfig.ItemFartChance
 	ItemChances[ItemSwitchback] = GPConfig.ItemSwitchbackChance
-	ItemChances[ItemBot] = 0.0
+	ItemChances[ItemBot] = GPConfig.ItemBotChance
 	//TODO: This is where we would register all item behaviors.
 
 	ItemRegistry[ItemSpeed] = func(userID int, state *GameState, hist *HistoryData) bool {
@@ -208,12 +208,18 @@ func InitializeItems() {
 	}
 	ItemRegistry[ItemBot] = func(userID int, state *GameState, hist *HistoryData) (consumed bool) {
 		consumed = false
-		_, ok := state.Players[userID]
+		pl, ok := state.Players[userID]
 		if !ok {
 			LogWarning("Player %d not found while trying to use Bot Item", userID)
 			return
 		}
-
+		//state.PlaySoundEffect("Bot")
+		state.Entities = append(state.Entities, NewBotSnake(
+			pl.Body.Tiles[0].Add(pl.Facing).MakeP(),
+			pl.Facing,
+			pl.ID,
+		))
+		consumed = true
 		return
 	}
 }

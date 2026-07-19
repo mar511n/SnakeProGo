@@ -57,12 +57,16 @@ func (s *GameState) MarshalMsgpack() ([]byte, error) {
 	}
 	bullets := make([]*BulletEntity, 0)
 	farts := make([]*FartEntity, 0)
+	bots := make([]*BotSnake, 0)
 	for _, entity := range s.Entities {
 		if b, ok := entity.(*BulletEntity); ok {
 			bullets = append(bullets, b)
 		}
 		if f, ok := entity.(*FartEntity); ok {
 			farts = append(farts, f)
+		}
+		if b, ok := entity.(*BotSnake); ok {
+			bots = append(bots, b)
 		}
 	}
 	ag := &struct {
@@ -73,6 +77,7 @@ func (s *GameState) MarshalMsgpack() ([]byte, error) {
 		Events     []*GameEvent
 		Bullets    []*BulletEntity
 		Farts      []*FartEntity
+		Bots       []*BotSnake
 	}{
 		PlayersIDs: ids,
 		Players:    pls,
@@ -81,6 +86,7 @@ func (s *GameState) MarshalMsgpack() ([]byte, error) {
 		Events:     s.Events,
 		Bullets:    bullets,
 		Farts:      farts,
+		Bots:       bots,
 	}
 	b, err := msgpack.Marshal(ag)
 	if err != nil {
@@ -98,6 +104,7 @@ func (s *GameState) UnmarshalMsgpack(data []byte) error {
 		Events     []*GameEvent
 		Bullets    []*BulletEntity
 		Farts      []*FartEntity
+		Bots       []*BotSnake
 	}{}
 	err := msgpack.Unmarshal(data, aux)
 	if err != nil {
@@ -141,6 +148,17 @@ func (s *GameState) UnmarshalMsgpack(data []byte) error {
 	} else {
 		for _, entity := range s.Entities {
 			if _, ok := entity.(*FartEntity); !ok {
+				newEntities = append(newEntities, entity)
+			}
+		}
+	}
+	if aux.Bots != nil {
+		for _, b := range aux.Bots {
+			newEntities = append(newEntities, b)
+		}
+	} else {
+		for _, entity := range s.Entities {
+			if _, ok := entity.(*BotSnake); !ok {
 				newEntities = append(newEntities, entity)
 			}
 		}
@@ -252,4 +270,140 @@ func (s *GameState) SpawnApple() *Apple {
 		Nutrition:  GPConfig.AppleNutrition,
 		IsConsumed: false,
 	}
+}
+
+func (s *GameState) DistanceToPlayers(pos Vec2i) map[int]int {
+	distances := make(map[int]int)
+	for id, player := range s.Players {
+		if player != nil && player.Body != nil && len(player.Body.Tiles) > 0 {
+			headPos := player.Body.Tiles[0]
+			//diff := pos.Sub(headPos)
+			distances[id] = heuristic(pos, headPos) //math.Hypot(float64(diff.X), float64(diff.Y))
+		}
+	}
+	return distances
+}
+
+// calculate the shortest path from start to goal using A* algorithm. Returns the path containing the start and goal tiles
+// use s.CheckPointCollision(tile, scanLayers) to check if a tile is blocked
+func (s *GameState) AstarPath(start, goal Vec2i, scanLayers CollisionMask) ([]Vec2i, bool) {
+	// If start equals goal, return just the start
+	if start.Equals(goal) {
+		return []Vec2i{start}, true
+	}
+
+	// Check if start or goal are blocked
+	if s.CheckPointCollision(goal, scanLayers) {
+		return nil, false
+	}
+
+	// A* algorithm structures
+	type node struct {
+		pos    Vec2i
+		g      int
+		h      int
+		f      int
+		parent *node
+	}
+
+	// Directions: 4-directional movement (up, right, down, left)
+	directions := []Vec2i{
+		{0, -1}, // up
+		{1, 0},  // right
+		{0, 1},  // down
+		{-1, 0}, // left
+	}
+
+	// Open set using a simple map and priority queue approach
+	openSet := make(map[Vec2i]*node)
+	closedSet := make(map[Vec2i]bool)
+
+	// Start node
+	startNode := &node{
+		pos:    start,
+		g:      0,
+		h:      heuristic(start, goal),
+		parent: nil,
+	}
+	startNode.f = startNode.g + startNode.h
+	openSet[start] = startNode
+
+	for len(openSet) > 0 {
+		// Find node with lowest f score in open set
+		var current *node
+		minF := int(^uint(0) >> 1) // max int
+		for _, n := range openSet {
+			if n.f < minF {
+				minF = n.f
+				current = n
+			}
+		}
+
+		// Check if we reached the goal
+		if current.pos.Equals(goal) {
+			// Reconstruct path
+			path := []Vec2i{}
+			for n := current; n != nil; n = n.parent {
+				path = append([]Vec2i{n.pos}, path...)
+			}
+			return path, true
+		}
+
+		// Move current from open to closed set
+		delete(openSet, current.pos)
+		closedSet[current.pos] = true
+
+		// Explore neighbors
+		for _, dir := range directions {
+			neighborPos := current.pos.Add(dir)
+
+			// Skip if in closed set
+			if closedSet[neighborPos] {
+				continue
+			}
+
+			// Skip if blocked
+			if s.CheckPointCollision(neighborPos, scanLayers) {
+				continue
+			}
+
+			// Calculate g score for this neighbor
+			tentativeG := current.g + 1 // uniform cost for each step
+
+			// Check if neighbor is in open set
+			neighborNode, exists := openSet[neighborPos]
+			if !exists {
+				// Create new node
+				neighborNode = &node{
+					pos:    neighborPos,
+					g:      tentativeG,
+					h:      heuristic(neighborPos, goal),
+					parent: current,
+				}
+				neighborNode.f = neighborNode.g + neighborNode.h
+				openSet[neighborPos] = neighborNode
+			} else if tentativeG < neighborNode.g {
+				// Found a better path to this node
+				neighborNode.g = tentativeG
+				neighborNode.f = neighborNode.g + neighborNode.h
+				neighborNode.parent = current
+			}
+		}
+	}
+
+	// No path found
+	return nil, false
+}
+
+// Heuristic function using Manhattan distance
+func heuristic(a, b Vec2i) int {
+	dx := int(a.X - b.X)
+	dy := int(a.Y - b.Y)
+	if dx < 0 {
+		dx = -dx
+	}
+	if dy < 0 {
+		dy = -dy
+	}
+	return dx + dy
 }

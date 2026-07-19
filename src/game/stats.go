@@ -1,5 +1,7 @@
 package game
 
+//TODO: actually implement this
+
 type Statistics struct {
 	TotalGamesPlayed int `toml:"TotalGamesPlayed"`
 	TotalWins        int `toml:"TotalWins"`

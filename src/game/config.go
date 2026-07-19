@@ -61,6 +61,7 @@ type GameplayConfig struct {
 	BotSpeed                    float64 `toml:"bot_speed"`                     // segments/second
 	BotLength                   int     `toml:"bot_length"`                    // in segments
 	BotDuration                 float64 `toml:"bot_duration"`                  // duration of bot item in seconds
+	BotSpawningTime             float64 `toml:"bot_spawning_time"`             // time in seconds before bot can collide with its owner snake
 	ItemFartChance              float64 `toml:"item_fart_chance"`              // chance for fart item to spawn
 	FartDuration                float64 `toml:"fart_duration"`                 // duration of fart item in seconds
 	FartSize                    int     `toml:"fart_size"`                     // size of fart area in segments
@@ -215,9 +216,10 @@ func loadGameplayConfig() {
 			BulletSpeed:                 15.0,
 			BulletRange:                 10,
 			ItemBotChance:               1.0,
-			BotSpeed:                    1.3,
+			BotSpeed:                    6.0,
 			BotLength:                   5,
 			BotDuration:                 10.0,
+			BotSpawningTime:             1.0,
 			ItemFartChance:              1.0,
 			FartDuration:                10.0,
 			FartSize:                    3,

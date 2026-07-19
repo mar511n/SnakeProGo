@@ -118,6 +118,9 @@ func (m *MainMenu) ShowControllers() {
 	} else {
 		m.PrintMessage("Detected controllers: %v", sdlids)
 	}
+	for playerName, pconfig := range PConfigs {
+		m.PrintMessage("Player: %s, Config: %+v", playerName, pconfig.KeyMap)
+	}
 }
 
 func (m *MainMenu) Quit() {
@@ -184,7 +187,7 @@ func (c *MainMenuContext) Initialize(menu *MainMenu, resources *ResourceManager)
 	xspace := 0.004
 	x0 := 1.0 - (bw + xspace)
 	y0 := 0.13
-	c.playernamefontsize = GetFontSizeForHeight(c.resources.Fonts["comic"], 0.037)
+	c.playernamefontsize = GetFontSizeForHeight(c.resources.Fonts["default"], 0.037)
 	elements := make([]GuiElement, 0)
 	startButton := &GuiButton{
 		Rect:  Rectf{Pos: Vec2f{X: x0, Y: y0}, Size: Vec2f{X: bw, Y: bw / GConfig.AspectRatio()}},
@@ -351,7 +354,7 @@ func (c *MainMenuContext) Draw(screen *ebiten.Image) {
 			plnames = append(plnames, name)
 		}
 		sort.Strings(plnames)
-		DrawTextRelative(screen, strings.Join(plnames, "\n"), &text.GoTextFace{Source: c.resources.Fonts["comic"], Size: c.playernamefontsize}, Vec2f{X: 0.37, Y: 0.51}, op2)
+		DrawTextRelative(screen, strings.Join(plnames, "\n"), &text.GoTextFace{Source: c.resources.Fonts["default"], Size: c.playernamefontsize}, Vec2f{X: 0.37, Y: 0.51}, op2)
 	*/
 	c.guiMain.Draw(screen)
 }

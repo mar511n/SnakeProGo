@@ -6,18 +6,18 @@ type FartEntity struct {
 	*EntityBase
 	Center               Vec2i
 	ticksSinceLastDamage int
-	collidingPlayers     []int
+	collidingSnakes      []*BaseSnake
 }
 
 func (f *FartEntity) OnCollision(other Collidable, tile Vec2i, state *GameState) {
 	if !f.IsExpired() {
-		if pl, ok := other.GetOwner().(*PlayerSnake); ok {
-			if pl.ID != f.OwnerID {
-				col, _ := f.Collider.IsColliding(&CollisionTiles{Tiles: []Vec2i{pl.Body.Tiles[0]}})
-				if col {
-					f.collidingPlayers = append(f.collidingPlayers, pl.ID)
-				}
+		if pl, ok := other.GetOwner().(*PlayerSnake); ok && pl.ID != f.OwnerID {
+			col, _ := f.Collider.IsColliding(&CollisionTiles{Tiles: []Vec2i{pl.Body.Tiles[0]}})
+			if col {
+				f.collidingSnakes = append(f.collidingSnakes, pl.BaseSnake)
 			}
+		} else if bot, ok := other.GetOwner().(*BotSnake); ok && bot.OwnerID != f.OwnerID {
+			f.collidingSnakes = append(f.collidingSnakes, bot.BaseSnake)
 		}
 	}
 }
@@ -31,13 +31,11 @@ func (f *FartEntity) Update(state *GameState, hist *HistoryData) {
 		f.ticksSinceLastDamage++
 		if f.ticksSinceLastDamage >= int(float64(GConfig.TPS)/GPConfig.FartDamagePerSecond) {
 			f.ticksSinceLastDamage = 0
-			for _, playerID := range f.collidingPlayers {
-				if pl, ok := state.Players[playerID]; ok {
-					pl.RemoveTiles(1, fmt.Sprintf("suffocated by player %d", f.OwnerID))
-				}
+			for _, snake := range f.collidingSnakes {
+				snake.RemoveTiles(1, fmt.Sprintf("suffocated by player %d", f.OwnerID))
 			}
 		}
-		f.collidingPlayers = make([]int, 0)
+		f.collidingSnakes = f.collidingSnakes[:0]
 	}
 }
 
